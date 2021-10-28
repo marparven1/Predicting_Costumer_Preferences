@@ -1,7 +1,6 @@
 ---
-title: "Task 1"
+title: "Task 1- Get Started with R"
 author: "Marta Venegas Pardo"
-date: "10/28/2021"
 output: html_document
 ---
 
@@ -9,22 +8,203 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r}
+library(readr) 
+?readr
 
-```{r cars}
-summary(cars)
+dire<-getwd() 
+setwd(dire) 
+
+library(dplyr)
+library(kableExtra)
 ```
 
-## Including Plots
+# Lectura de datos
 
-You can also embed plots, for example:
+```{r}
+Cars<- read.csv(file = 'R_Tutorial_Data_Sets/cars.csv',header   = TRUE,sep=",")
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+Cars %>% 
+  head() %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+attributes(Cars)#List your attributes within your data set.
+```
+
+
+```{r}
+summary(Cars) #Prints the min, max, mean, median, and quartiles of each attribute.
+```
+
+No hay valores nulos, si no tendríamos la información aqui
+
+
+```{r}
+str(Cars) #Displays the structure of your data set.
+```
+
+Variables:
+
+- Marca
+- Velocidad
+- Distancia
+
+
+```{r}
+names(Cars) #Names your attributes within your data set.
+```
+
+
+```{r}
+Cars$name.of.car #Will print out the instances within that particular column in your data set.
+```
+
+## Representaciones gráficas
+
+
+### Histogram Plot
+
+```{r}
+par(mfrow=c(1,2))
+hist(Cars$speed.of.car)
+hist(Cars$distance.of.car)
+par(mfrow=c(1,1))
+```
+
+
+
+
+
+### Scatter (Box) Plot
+```{r}
+plot(Cars$speed.of.car,Cars$distance.of.car)
+```
+
+Parece que existe una tendencia creciente.
+
+
+```{r}
+plot(Cars$name.of.car,Cars$speed.of.car,
+     main="BoxPlot \n Marca vs Velocidad",
+     ylab="Velocidad",
+     xlab="Marca"
+     )
+```
+
+
+## Normal Quantile Plot- is a way to see if your data is normally distributed.
+
+
+```{r}
+par(mfrow=c(2,1))
+
+qqnorm(Cars$speed.of.car,main="Gráficos de normalidad \n Velocidad")
+qqline(Cars$speed.of.car, datax = FALSE, distribution = qnorm,col="red")
+
+qqnorm(Cars$distance.of.car,main="Distancia")
+qqline(Cars$distance.of.car, datax = FALSE, distribution = qnorm,col="red")
+par(mfrow=c(1,1))
+```
+
+Gráficamente podríamos afirmar que la variable velocidad se ajusta a una normal, ya que los puntos están en torno a la recta, sobre todo en el centro. Existen mayores oscilaciones en los extremos.
+
+Para la variable distancia deberíamos realizar test para afirmarlo con seguridad, aunque parece que si.
+
+
+
+# Preprocesado de datos
+
+```{r}
+names(Cars)<-c("Marca","Velocidad","Distancia")
+```
+
+
+```{r}
+summary(Cars) #Will count how many NA’s you have.
+```
+ 
+No existen valores NA
+
+```{r}
+dim(Cars)
+```
+
+
+
+```{r}
+Cars
+```
+
+# DataSets de Entrenamiento y Testeo
+
+```{r}
+set.seed(12345)
+```
+
+Dividimos el dataset en 70$\%$ para entrenamiento y 30$\%$ para testeo.
+
+
+
+
+```{r}
+#splitting
+LongitudEntrenamiento<-round(nrow(Cars)*0.7) 
+LongitudTesteo<-nrow(Cars)-LongitudEntrenamiento
+cat(" Longitud de datos de entrenamiento:",LongitudEntrenamiento , "\n",
+    "Longitud de datos de testeo:",LongitudTesteo )
+```
+
+
+
+```{r}
+#creating datasets
+training_indices<-sample(seq_len(nrow(Cars)),size =LongitudEntrenamiento)
+
+trainSet<-Cars[training_indices,]
+
+testSet<-Cars[-training_indices,] 
+```
+
+```{r}
+trainSet %>% 
+  head() %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+```{r}
+testSet %>% 
+  head() %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+# Modelo de regresión lineal
+
+```{r}
+modelo1<-lm(Distancia ~ Velocidad, trainSet) # y~x
+summary(modelo1)
+```
+
+Conclusiones:
+
+- p-valor: $2,2 \cdot 10^{-16} < \alpha = 0.05$, la velocidad afecta a la distancia de forma muy significativa, el p-valor es muy pequeño y el valor del estadístico es muy grande.
+
+- $R^2 = 0.9127$. Tenemos un buen ajuste, el modelo explica un `r 0.9127*100` $\%$ de la variabilidad total del modelo.
+
+
+# Predicciones
+
+```{r}
+Predicciones1<- predict(modelo1,testSet)
+Predicciones1
+```
+
