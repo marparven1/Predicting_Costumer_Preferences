@@ -1,4 +1,4 @@
-# Predicting_Costumer_Preferences
+# Module 3. Predicting_Costumer_Preferences
 
 RProject 
 
@@ -11,7 +11,7 @@ recommender systems like the ones used by Amazon and other eCommerce sites.
 
 
 
-Skills applicable to data mining tasks:
+## Skills applicable to data mining tasks:
  
 - Data mining in e-commerce (e.g. profitability prediction, customer segmentation, product selection strategy)
 - Preprocessing data for data mining (e.g., applying filters, addressing missing data)
@@ -27,7 +27,7 @@ Skills applicable to data mining tasks:
 - Presenting data mining results to management.
  
 
-What will I learn?
+## What will I learn?
 
 - Exploring the patterns in the data to create models to predict new events, like customer product preferences. 
 - Pptimize the initial performance of a classifier by adjusting its parameters. 
