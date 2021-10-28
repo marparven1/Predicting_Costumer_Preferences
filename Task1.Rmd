@@ -1,7 +1,12 @@
 ---
-title: "Task 1- Get Started with R"
+title: "Task 1- Get Started with R \n Regression Analysis"
 author: "Marta Venegas Pardo"
-output: html_document
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    toc: true
+    toc_depth: 2
 ---
 
 ```{r setup, include=FALSE}
@@ -204,7 +209,28 @@ Conclusiones:
 # Predicciones
 
 ```{r}
-Predicciones1<- predict(modelo1,testSet)
+Predicciones1<- predict(modelo1,testSet,interval = 'prediction')
 Predicciones1
 ```
+
+```{r}
+comparo <- cbind.data.frame(testSet[,3],Predicciones1[,1], testSet[,3]-Predicciones1[,1] )
+names(comparo)<- c("Valor Real","Predicción","Error")
+comparo %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+# index <- testSet[,0]
+index <- c(4	,	5	,	6		,	7	,15	,	18	,21	,23	,	27	,34,35	,	39,	42	,	45	,	47)
+par(mfrow=c(1,1))
+
+plot(index,comparo[,1], main = "Predicciones VS Valor real")
+par(new=T)
+plot(index,comparo[,2],col="red")
+legend(1, 95, legend=c("Line 1", "Line 2"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
+```
+
 
