@@ -1,21 +1,31 @@
 ---
-title: "Task 1- Get Started with R \n Regression Analysis"
+title: "Modulo 3"
+subtitle: "Tarea 1- Empezando con R \n Análisis de Regresión"
 author: "Marta Venegas Pardo"
 output:
   prettydoc::html_pretty:
     theme: leonids
     highlight: github
-    toc: true
-    toc_depth: 2
+    toc: yes
+    toc_depth: 3
+    number_sections: yes
+  pdf_document:
+    includes: null
+    toc: yes
+    toc_depth: 3
+    number_sections: yes
+    keep_tex: yes
+    highlight: pygments
+lang: es
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning=FALSE)
 ```
 
 
 
-```{r}
+```{r include=FALSE}
 library(readr) 
 ?readr
 
@@ -24,13 +34,14 @@ setwd(dire)
 
 library(dplyr)
 library(kableExtra)
+library(knitr)
 ```
 
 # Lectura de datos
 
 ```{r}
 Cars<- read.csv(file = 'R_Tutorial_Data_Sets/cars.csv',header   = TRUE,sep=",")
-
+colnames(Cars)<-c("Marca","Velocidad","Distancia")
 Cars %>% 
   head() %>% 
   kable(booktabs=TRUE) %>% 
@@ -73,33 +84,79 @@ Cars$name.of.car #Will print out the instances within that particular column in 
 ## Representaciones gráficas
 
 
-### Histogram Plot
+### Histograma
 
 ```{r}
+library(ggplot2)
 par(mfrow=c(1,2))
-hist(Cars$speed.of.car)
-hist(Cars$distance.of.car)
+qplot(Cars$Velocidad,
+      geom="histogram",
+      binwidth = 5,  
+      main = "Histograma de la Velocidad", 
+      xlab = "Velocidad", 
+      ylab = "Frecuencia",
+      fill=I("blue"), 
+      col=I("red"), 
+      alpha=I(.2))+
+    scale_x_continuous(breaks = seq(from=0,to=25,by=5),
+                   labels = c(0,5,10,15,20,25))
+qplot(Cars$Distancia,
+      geom="histogram",
+      binwidth = 10,  
+      main = "Histograma de la Distancia", 
+      xlab = "Distancia", 
+      ylab = "Frecuencia",
+      fill=I("blue"), 
+      col=I("red"), 
+      alpha=I(.2))+
+    scale_x_continuous(breaks = seq(from=0,to=120,by=10))
 par(mfrow=c(1,1))
+seq()
 ```
 
-
-
-
-
-### Scatter (Box) Plot
 ```{r}
-plot(Cars$speed.of.car,Cars$distance.of.car)
+ggplot(data=Cars, aes(Distancia,fill=Marca)) + 
+  geom_histogram() # dibujamos el histograma
 ```
+
+
+
+
+### Nube de puntos Distancia vs Velocidad
+
+
+```{r}
+#plot(Cars$Velocidad,Cars$Distancia)
+
+#ggplot(data=Cars, aes(Velocidad, Distancia)) +
+#geom_point() + # los puntos
+#stat_smooth(se=FALSE)
+
+ qplot(Velocidad, Distancia, data = Cars, 
+       xlab = "Distancia", ylab = "Velocidad", 
+       alpha = I(0.7), col=I("red"),
+       main = "Distancia vs Velocidad \n Datos Cars")
+```
+
+
 
 Parece que existe una tendencia creciente.
 
+### Diagrama de Caja y bigote (Marca vs Velocidad)
+
 
 ```{r}
-plot(Cars$name.of.car,Cars$speed.of.car,
-     main="BoxPlot \n Marca vs Velocidad",
-     ylab="Velocidad",
-     xlab="Marca"
-     )
+#plot(Cars$Marca,Cars$Velocidad,
+#     main="BoxPlot \n Marca vs Velocidad",
+#     ylab="Velocidad",
+#     xlab="Marca")
+
+
+ggplot(Cars, aes(x=Marca, y=Velocidad)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=8,outlier.size=)+
+  stat_summary(fun.y=mean, geom="point", shape=23, size=4)+
+  #coord_flip()
+  ggpubr::rotate_x_text(angle = 45)
 ```
 
 
@@ -109,11 +166,11 @@ plot(Cars$name.of.car,Cars$speed.of.car,
 ```{r}
 par(mfrow=c(2,1))
 
-qqnorm(Cars$speed.of.car,main="Gráficos de normalidad \n Velocidad")
-qqline(Cars$speed.of.car, datax = FALSE, distribution = qnorm,col="red")
+qqnorm(Cars$Velocidad,main="Gráficos de normalidad \n Velocidad")
+qqline(Cars$Velocidad, datax = FALSE, distribution = qnorm,col="red")
 
-qqnorm(Cars$distance.of.car,main="Distancia")
-qqline(Cars$distance.of.car, datax = FALSE, distribution = qnorm,col="red")
+qqnorm(Cars$Distancia,main="Distancia")
+qqline(Cars$Distancia, datax = FALSE, distribution = qnorm,col="red")
 par(mfrow=c(1,1))
 ```
 
@@ -126,7 +183,7 @@ Para la variable distancia deberíamos realizar test para afirmarlo con segurida
 # Preprocesado de datos
 
 ```{r}
-names(Cars)<-c("Marca","Velocidad","Distancia")
+# names(Cars)<-c("Marca","Velocidad","Distancia")
 ```
 
 
@@ -134,16 +191,13 @@ names(Cars)<-c("Marca","Velocidad","Distancia")
 summary(Cars) #Will count how many NA’s you have.
 ```
  
-No existen valores NA
+No existen valores NA.
+
+
+La dimensión de nuestros datos es la siguiente: `r dim(Cars)`
 
 ```{r}
-dim(Cars)
-```
-
-
-
-```{r}
-Cars
+#Cars
 ```
 
 # DataSets de Entrenamiento y Testeo
@@ -201,6 +255,8 @@ summary(modelo1)
 
 Conclusiones:
 
+- Modelo: $\text{Distancia}=-30.58 + 4.7858 \cdot \text{Velocidad}$
+
 - p-valor: $2,2 \cdot 10^{-16} < \alpha = 0.05$, la velocidad afecta a la distancia de forma muy significativa, el p-valor es muy pequeño y el valor del estadístico es muy grande.
 
 - $R^2 = 0.9127$. Tenemos un buen ajuste, el modelo explica un `r 0.9127*100` $\%$ de la variabilidad total del modelo.
@@ -210,7 +266,9 @@ Conclusiones:
 
 ```{r}
 Predicciones1<- predict(modelo1,testSet,interval = 'prediction')
-Predicciones1
+Predicciones1 %>% 
+  kable(booktabs=TRUE,caption = "Predicciones de la distancia. Intervalos de Confianza") %>% 
+  kable_styling(latex_options = "striped")
 ```
 
 ```{r}
