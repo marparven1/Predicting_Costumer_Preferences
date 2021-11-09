@@ -1,4 +1,6 @@
-# Module 3. Predicting_Costumer_Preferences
+# PROJECT FOR Blackwell Electronics
+# MARTA VENEGAS PARDO. UBIQUM CODE ACADEMY
+# Module 3 Task 1: Predicting_Costumer_Preferences
 
 RProject 
 
