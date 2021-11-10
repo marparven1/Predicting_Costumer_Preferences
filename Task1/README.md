@@ -1,5 +1,5 @@
-# Module 3. Predicting_Costumer_Preferences
-
+# Module 3 Task 1: PROJECT FOR Blackwell Electronics (Predicting_Costumer_Preferences)
+## MARTA VENEGAS PARDO (UBIQUM CODE ACADEMY)
 RProject 
 
 Working with Danielle Sherman, the Chief Technology Officer at Blackwell Electronics. 
