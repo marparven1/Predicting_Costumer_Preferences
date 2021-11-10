@@ -33,7 +33,8 @@ library(knitr)
 ```
 
 ```{r}
-install.packages("caret", dependencies = c("Depends", "Suggests"))
+#install.packages("caret", dependencies = c("Depends", "Suggests"))
+library(C50)
 library(caret)
 library(mlbench)
 ```
@@ -45,7 +46,11 @@ library(mlbench)
 
 ## Objetivos
 
-- El equipo de ventas contrató una empresa de investigación de mercado para realizar una encuensta a los clientes de Blackwell Electronics con el **objetivo** de averiguar, de entre todas las marcas de ordenadores en ventas, cuales son las dos marcas  preferidas por los clientes. Con esta información, se podrán tomar decisiones sobre que fabricantes se debe buscar una relación estratégica mejor. 
+El equipo de ventas de Blackwell Electronics contrató una empresa de investigación de mercado para realizar una encuensta a los clientes con el siguiente **objetivo**:
+
+- Averiguar, de entre todas las marcas de ordenadores en venta, cuales son las **dos marcas  preferidas** por los clientes. 
+
+Con esta información, se podrán tomar decisiones sobre que fabricantes se debe buscar una relación estratégica mejor. 
 
 - Sin embargo, como suele ocurrir al hacer una encuesta, las información sobre la preferencia de marcas de ordenador no quedó recogida por completo por lo que no tenemos resultados precisos.
 
@@ -56,34 +61,106 @@ library(mlbench)
 
 ## Procedimiento para cumplir mis objetivos
 
+- Descripción de datos, pre-procesado, data cleaning y análisis exploratorio
+- Modelado a través de algoritmos de clasificacción (árboles de decisión), en concreto C5.0 y RandomForest
+- Decisión del método que mejor funciona para predecir la marca de ordenador preferida por los clientes
 
-- Optimización de métodos de clasificacción a través de árboles de decisión (C5.0 y RandomForest)
-- Decisión del método que mejor funciona para nuestros datos
-
-- Conjuntos de datos:
-
-  - **CompleteResponses**: Conjunto de datos con 10000 encuestas completas que usaremos para entrenar el modelo y construir un modelo predictivo
-  - **Survey key**: Encuesta (al final del documento)
-  - **Survey Incomplete**: Dataset para testear el mejor modelo y tratar de predecir la marca preferida por los clientes
 
 
 
 # Dataset
 
-```{r}
-RespComp<-read.csv(file="SurveyData/CompleteResponses.csv",header = TRUE,sep = ",",dec ="." )
 
-RespIncomp<-read.csv(file="SurveyData/SurveyIncomplete.csv",header = TRUE,sep = ",",dec =".")
+- Conjuntos de datos:
+
+  - **CompleteResponses**: Conjunto de datos con 10000 encuestas completas que usaremos para entrenar el modelo y construir un modelo predictivo
+  - **Survey Incomplete**: Dataset para testear el mejor modelo y tratar de predecir la marca preferida por los clientes
+  - **Survey key**: Encuesta (al final del documento)
+  
+
+```{r}
+DatosCompletos<-read.csv(file="SurveyData/CompleteResponses.csv",header = TRUE,sep = ",",dec ="." )
+
+DatosIncompletos<-read.csv(file="SurveyData/SurveyIncomplete.csv",header = TRUE,sep = ",",dec =".")
 ```
+
+
+Vamos a visualizar unas cuantas líneas de los datos:
+
+```{r}
+DatosCompletos %>% 
+  head(10) %>% 
+  kable(booktabs=TRUE,caption = "Datos Completos")
+```
+
+
+```{r}
+DatosIncompletos %>% 
+  head(10) %>% 
+  kable(booktabs=TRUE,caption = "Datos incompletos")
+```
+
+
 
 ## Descripción de los datos
 
+- Datos de entrenamiento y validación: 9898 registros, 7 variables
+- Datos de testeo: 5000 registros con las mismas 7 variables
+
+En los conjuntos de datos encontramos 7 variables :
+
+- **Salario**: Salario anual del cliente, en dólares. (Variable numérica)
+- **Edad**: Edad, en años (Variable numérica)
+- **Elevel**: Nivel educativo más alto alcanzado. (Variable categórica). Corresponde a una escala de Likert
+
+  - 0:	Less than High School Degree
+  - 1:	High School Degree
+  - 2:	Some College
+  - 3:	4-Year College Degree
+  - 4:	Master’s, Doctoral or Professional Degree
+- **Car**: Marca de coche del cliente (1-20) (Variable categórica). Ver codificación al final del coumento (en la encuesta)
+- **Zip**: Código postal. (categórica)
+
+  - 0:	New England
+  - 1:	Mid-Atlantic
+  - 2:	East North Central
+  - 3:	West North Central
+  - 4:	South Atlantic
+  - 5:	East South Central
+  - 6:	West South Central
+  - 7:	Mountain
+  - 8:	Pacific
+- **Credit**: Crédito total disponible (variable numérica)
+- **Target. Brand**: Marca de ordenador preferida. (Variable Binaria)
+
+  - 0:	Acer
+  - 1:	Sony
 
 
+```{r}
+# dim(DatosCompletos)
+# dim(DatosInompletos)
+```
 
 
 
 # Pre-Processing (Limpieza de datos)
+
+```{r}
+str(DatosCompletos)
+```
+
+```{r}
+str(DatosIncompletos)
+```
+
+
+```{r}
+summary(DatosCompletos)
+```
+```{r}
+summary(DatosIncompletos)
+```
 
 
 
@@ -94,6 +171,66 @@ RespIncomp<-read.csv(file="SurveyData/SurveyIncomplete.csv",header = TRUE,sep = 
 ## Missing values
 ## Outliers
 ## Transformación de variables
+
+### Factorización de las variables 
+
+Recodificamos las variables categóricas para una mejor visualización de los datos
+
+- Target: Brand
+- Código Postal
+- Car
+- Nivel educativo
+
+```{r}
+DatosCompletosCategoricos = DatosCompletos
+DatosCompletosCategoricos = DatosCompletosCategoricos%>% 
+  mutate(
+    Marca = factor(DatosCompletosCategoricos$brand, 
+                   levels = c(0,1), 
+                   labels = c("Acer", "Sony")),
+    CódigoPostal = factor(DatosCompletosCategoricos$zipcode,
+                          levels = c(0,1,2,3,4,5,6,7,8), 
+                          labels =   c("New England","Mid-Atlantic","East North Central","West North Central","South Atlantic","East South Central","West South Central","Mountain","Pacific")),
+    NivelEduc = factor(DatosCompletosCategoricos$elevel, 
+                   levels = c(0,1,2,3,4), 
+                   labels = c("Less HS", "HS", "SomeCollege","College Degree","Post College Decree")),
+    MarcaCoche= factor(DatosCompletosCategoricos$car, 
+                   levels = 1:20, 
+                   labels=c("BMW","Buick","Cadillac","Chevrolet","Chrysler","Dodge","Ford","Honda","Hyundai","Jeep","Kia","Lincoln","Mazda","Mercedes Benz","Mitsubishi","Nissan","Ram","Subaru","Toyota","Other")
+))%>% 
+  select(c(1,2,10,11,9,6,8))
+
+
+DatosCompletosCategoricos %>% head(10) %>% 
+  kable(booktabs=TRUE)
+
+
+
+
+DatosIncompletosCategoricos = DatosIncompletos
+DatosIncompletosCategoricos = DatosIncompletosCategoricos%>% 
+  mutate(
+    Marca = factor(DatosIncompletosCategoricos$brand, 
+                   levels = c(0,1), 
+                   labels = c("Acer", "Sony")),
+    CódigoPostal = factor(DatosIncompletosCategoricos$zipcode,
+                          levels = c(0,1,2,3,4,5,6,7,8), 
+                          labels =   c("New England","Mid-Atlantic","East North Central","West North Central","South Atlantic","East South Central","West South Central","Mountain","Pacific")),
+    NivelEduc = factor(DatosIncompletosCategoricos$elevel, 
+                   levels = c(0,1,2,3,4), 
+                   labels = c("Less HS", "HS", "SomeCollege","College Degree","Post College Decree")),
+    MarcaCoche= factor(DatosIncompletosCategoricos$car, 
+                   levels = 1:20, 
+                   labels=c("BMW","Buick","Cadillac","Chevrolet","Chrysler","Dodge","Ford","Honda","Hyundai","Jeep","Kia","Lincoln","Mazda","Mercedes Benz","Mitsubishi","Nissan","Ram","Subaru","Toyota","Other")
+))%>% 
+  select(c(1,2,10,11,9,6,8))
+
+
+# DatosIncompletosCategoricos
+
+```
+
+
 ## Creación de variables
 
 # Análisis exploratorio
