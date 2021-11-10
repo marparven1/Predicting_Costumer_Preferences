@@ -1,11 +1,9 @@
-# Predicting_Costumer_Preferences
-# Proyecto Blackwell Electronics. Fase 1. Data Science Process
+# Predicting_Costumer_Preferences (Proyecto Blackwell Electronics. Fase 1. Data Science Process)
+Task 2: Task 2: Classification: Predict which Brand of Products Customers Prefer
 
-# Task 2: Task 2: Classification: Predict which Brand of Products Customers Prefer
+## Introduction (problem definition)
 
-# Introduction (problem definition)
-
-## Objectives
+### Objectives
 
 - The sales team hired a market research company to conduct a survey of Blackwell Electronics customers with the objective of finding out, among all the brands
 of computers in sales, which are the two brands preferred by the customers. With this information, decisions can be made on which manufacturers to seek a better
@@ -18,12 +16,12 @@ accurate results.
 
 
 
-## Procedure to meet my objectives
+### Procedure to meet my objectives
 
 - Optimization of classification methods through decision trees (C5.0 and RandomForest)
 - Decision of the method that works best for our data
 
 - Data sets:
-  - ** CompleteResponses **: Data set with 10,000 completed surveys that we will use to train the model and build a predictive model
-  - ** Survey key **: Survey (at the end of the document)
-  - ** Survey Incomplete **: Dataset to test the best model and try to predict the brand preferred by customers
+  - CompleteResponses : Data set with 10,000 completed surveys that we will use to train the model and build a predictive model
+  - Survey key : Survey (at the end of the document)
+  - Survey Incomplete : Dataset to test the best model and try to predict the brand preferred by customers
