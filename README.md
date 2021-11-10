@@ -1,5 +1,7 @@
-# Predicting_Costumer_Preferences (Proyecto Blackwell Electronics. Fase 1. Data Science Process)
-Task 2: Task 2: Classification: Predict which Brand of Products Customers Prefer
+# Predicting_Costumer_Preferences (Proyecto Blackwell Electronics. 
+- Task2: Classification: Predict which Brand of Products Customers Prefer
+  - Fase 1. Data Science Process)
+
 
 ## Introduction (problem definition)
 
