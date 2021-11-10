@@ -1,0 +1,397 @@
+---
+title: "Modulo 3"
+author: "Marta Venegas Pardo"
+date: "5/Noviembre/2021"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    toc: yes
+    toc_depth: 3
+    number_sections: yes
+  pdf_document:
+    includes: null
+    toc: yes
+    toc_depth: 3
+    number_sections: yes
+    keep_tex: yes
+    highlight: pygments
+subtitle: "Tarea 1- Empezando con R \n Análisis de Regresión"
+lang: es
+---
+
+```{r setup, include=FALSE,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(message=FALSE,warning=FALSE   , echo = FALSE
+  )
+```
+
+```{r include=FALSE}
+library(readr) 
+?readr
+
+dire<-getwd() 
+setwd(dire) 
+
+library(dplyr)
+library(kableExtra)
+library(knitr)
+```
+
+# Lectura de datos
+
+Nos encontramos ante un dataset con 50 registros donde vienen recogidas las siguientes variables:
+
+-   Marca (cualitativa)
+-   Velocidad (cuantitavia continua)
+-   Distancia (cuantitativa continua)
+
+```{r}
+Cars<- read.csv(file = 'R_Tutorial_Data_Sets/cars.csv',header   = TRUE,sep=",")
+colnames(Cars)<-c("Marca","Velocidad","Distancia")
+Cars %>% 
+  head() %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+attributes(Cars)#List your attributes within your data set.
+```
+
+Breve resumen de las variables a continuación:
+
+```{r}
+summary(Cars) #Prints the min, max, mean, median, and quartiles of each attribute.
+```
+
+No hay valores nulos, si no tendríamos la información aqui
+
+```{r}
+# str(Cars) #Displays the structure of your data set.
+```
+
+```{r}
+Cars$Marca #Will print out the instances within that particular column in your data set.
+```
+
+De los 50 registros, encontramos 23 marcas diferentes.
+
+## Representaciones gráficas con ggplot2
+
+### Histograma
+
+```{r}
+library(ggplot2)
+par(mfrow=c(1,2))
+qplot(Cars$Velocidad,
+      geom="histogram",
+      binwidth = 5,  
+      main = "Histograma \n Variable Velocidad", 
+      xlab = "Velocidad", 
+      ylab = "Frecuencia",
+      fill=I("blue"), 
+      col=I("red"), 
+      alpha=I(.2))+
+    scale_x_continuous(breaks = seq(from=0,to=25,by=5),
+                   labels = c(0,5,10,15,20,25))
+qplot(Cars$Distancia,
+      geom="histogram",
+      binwidth = 10,  
+      main = "Histograma \n Variable Distancia", 
+      xlab = "Distancia", 
+      ylab = "Frecuencia",
+      fill=I("blue"), 
+      col=I("red"), 
+      alpha=I(.2))+
+    scale_x_continuous(breaks = seq(from=0,to=120,by=10))
+par(mfrow=c(1,1))
+seq()
+```
+
+```{r}
+ggplot(data=Cars, aes(Distancia,fill=Marca)) + 
+  geom_histogram() + # dibujamos el histograma
+ scale_x_continuous(breaks=seq(0,120,5))+
+  ggpubr::rotate_x_text(angle = 45)+
+  labs(x = "Distancia",y = "Frecuencia Absoluta")+
+  ggtitle ("Distancia y Marca de Coche")
+```
+
+En este gráfico podemos ver la distancia que ha recorrido cada coche particular según la marca, es decir. Para la marca *Acura*, tenemos dos registros, uno que ha recorrido una distancia de 32 unidades y otro que ha recorrido 70.
+
+### Diagrama de Caja y bigote (Marca vs Velocidad)
+
+```{r}
+#plot(Cars$Marca,Cars$Velocidad,
+#     main="BoxPlot \n Marca vs Velocidad",
+#     ylab="Velocidad",
+#     xlab="Marca")
+
+
+ggplot(Cars, aes(x=Marca, y=Velocidad)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=8,outlier.size=)+
+  stat_summary(fun.y=mean, geom="point", shape=23, size=4)+
+    labs(title="Box Plot" ,
+       subtitle= "Marca vs Velocidad" , 
+       caption= "Nota: Los triangulos representan las medias de velocidad para cada marca \nDatos Cars \n Fuente: Elaboración propia")+
+  #coord_flip()
+  ggpubr::rotate_x_text(angle = 45)
+```
+
+### Nube de puntos Distancia vs Velocidad
+
+```{r message=FALSE, warning=FALSE}
+#plot(Cars$Velocidad,Cars$Distancia)
+
+#ggplot(data=Cars, aes(Velocidad, Distancia)) +
+#geom_point() + # los puntos
+#stat_smooth(se=FALSE)
+
+
+ggplot(data = Cars, aes(x = Velocidad, y = Distancia)) + 
+  geom_point(colour = "red4") +
+  labs(title="DDiagrama de dispersión. Distancia vs Velocidad" ,
+       subtitle= "Datos Cars" , 
+       caption= "Fuente: Elaboración propia")+
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+  
+# Otra forma de gráfico
+## qplot(Velocidad, Distancia, data = Cars, 
+##       xlab = "Distancia", ylab = "Velocidad", 
+##       alpha = I(0.7), col=I("red")
+##       ) + 
+##  labs(title="DDiagrama de dispersión. Distancia vs Velocidad" ,
+##       subtitle= "Datos Cars" , 
+##       caption= "Fuente: Elaboración propia")
+```
+
+El diagrama de dispersión parece indicar una posible relación lineal entre la variable velocidad y distancia, ya que a medida que aumenta la distancia, aumenta la velocidad de conducción.
+
+## Gráficos de normalidad
+
+```{r}
+par(mfrow=c(2,1))
+
+qqnorm(Cars$Velocidad,main="Gráficos de normalidad  \n Velocidad",col = "darkred")
+qqline(Cars$Velocidad, datax = FALSE, distribution = qnorm,col="black")
+
+qqnorm(Cars$Distancia,main="Distancia",col = "green")
+qqline(Cars$Distancia, datax = FALSE, distribution = qnorm,col="black")
+par(mfrow=c(1,1))
+```
+
+Gráficamente podríamos adelantar que las variables velocidad y distancia se ajusta a una distribución normal, ya que los puntos están en torno a la recta, sobre todo en el centro y existen mayores oscilaciones en los extremos.
+
+Nota importante: Esto es sólo un método gráfico, siempre debemos comprobar la normalidad con un test de hipótesis, como el test de Shapiro-Wilk
+
+### Test de normalidad
+
+```{r}
+shapiro.test(Cars$Velocidad)
+```
+
+```{r}
+shapiro.test(Cars$Distancia)
+```
+
+Por tanto, no existen evidencias significativas para afirmar que la variable velocidad se distribuye según una ley normal, mientras que si aceptamos normalidad para la variable distancia.
+
+# Preprocesado de datos
+
+```{r}
+# names(Cars)<-c("Marca","Velocidad","Distancia")
+```
+
+```{r}
+summary(Cars) #Will count how many NA’s you have.
+```
+
+No existen valores NA.
+
+La dimensión de nuestros datos es la siguiente:
+
+-   `r dim(Cars)`
+-   50 Registros
+-   3 Variables
+
+```{r}
+#Cars
+```
+
+# DataSets de Entrenamiento y Testeo
+
+```{r}
+# semilla para la replicabilidad de los datos
+set.seed(12345)
+```
+
+Dividimos el dataset en 70$\%$ para entrenamiento y 30$\%$ para testeo.
+
+```{r}
+#splitting
+LongitudEntrenamiento<-round(nrow(Cars)*0.7) 
+LongitudTesteo<-nrow(Cars)-LongitudEntrenamiento
+cat(" Longitud de datos de entrenamiento:",LongitudEntrenamiento , "\n",
+    "Longitud de datos de testeo:",LongitudTesteo )
+```
+
+```{r}
+#creating datasets
+training_indices<-sample(seq_len(nrow(Cars)),size =LongitudEntrenamiento)
+
+trainSet<-Cars[training_indices,]
+
+testSet<-Cars[-training_indices,] 
+```
+
+```{r}
+trainSet %>% 
+  head() %>% 
+  kable(booktabs=TRUE, caption="Datos de entrenamiento") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+testSet %>% 
+  head() %>% 
+  kable(booktabs=TRUE , caption="Datos de testeo") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+# Modelo de regresión lineal
+
+Modelo lineal: Trataremos de explicar la variable distancia en función de la velocidad.
+
+-   Variable objetivo: Distancia
+-   Variable explicativa: Velocidad
+
+```{r}
+modelo1<-lm(Distancia ~ Velocidad, trainSet) # y~x
+summary(modelo1)
+```
+
+Conclusiones:
+
+-   Modelo: $\text{Distancia}=-30.58 + 4.7858 \cdot \text{Velocidad}$
+
+    -   Nota: El modelo general obtenido en la salida es el siguiente. $\hat y = \hat\beta_0 + \hat\beta_1 x_1$
+
+-   p-valor correspondiente al coeficiente de la velocidad: $2,2 \cdot 10^{-16} < \alpha = 0.05$, existen evidencias significativas que afirman que la velocidad afecta a la distancia, el p-valor es muy pequeño y el valor del estadístico es muy grande (*rechazo la hipótesis nula* $H_0: \beta_{\text{Velocidad}}=0$. Este contraste es equivalente a decir que no hay relación lineal entre ambas variables, por lo que la pendiente del modelo es nula).
+
+-   $R^2 = 0.9127$. Tenemos un buen ajuste, el modelo explica un `r 0.9127*100` $\%$ de la variabilidad total.
+
+## Condiciones para la regresión lineal (assumptions), plot del modelo y estudio de los resíduos
+
+El residuo de las estimaciones se definen de la siguiente forma: diferencia entre el valor observado y el valor esperado según el modelo.
+
+Cuanto mayor es la suma de cuadrados de los residuos (suma de los resíduos al cuadrado) menor la precisión con la que el modelo puede predecir el valor de la variable Distancia (dependiente) a partir de la variable Velocidad (predictora).
+
+```{r echo=TRUE}
+par(mfrow=c(2,2))
+plot(modelo1)
+par(mfrow=c(1,1))
+```
+
+Conclusiones:
+
+**Residuals vs Fitted values** Si los puntos se distribuyen de manera aleatoria en torno al 0 (linea discontinua), diremos que la relación entre las variables es lineal (*Assumption 1: Relación de linealidad entre variables*). Para nuestro ajuste, vemos tendencia curva en los puntos y no en torno a una recta.
+
+-   **Normal Q-Q** Como hemos dicho anteriormente, para estudiar gráficamente la normalidad de los resíduos, si esta se diera, los puntos se ajustarían en torno a la recta. Los valores de los extremos suelen alejarse de la recta, indicando la no normalidad de los resíduos, es decir, violación de la hipótesis de normalidad, aunque puede que no sean puntos significativos. En nuestro caso, la observación 50 se aleja mucho, valor extremo. (*Assumption 10: Normalidad de los resíduos*)
+
+-   **Scale-Location** Estudia la igualdad de varianzas (homocedasteceidad) de los resíduos. Si la varianza fuera constante, los resíduos en el gráfico se distribuirían de forma aleatoria y entorno a la línea (que sería aproximadamente horizontal) . En caso de que no se diera homocedasteceidad, los puntos en el gráfico tendrían un patron (muy común el gráfico de embudo), indicando que la varianza no es constante. (*Assumption 3: Homoscedasticity of residuals or equal variance*)
+
+    -   A continuación vemos una imagen en la que los resíduos no se distribuyen de forma aleatoria y el gráfico tiene forma de *embudo*, indicando así que los resíduos no tienen igual varianza. Además la linea roja no es horizontal.
+
+    ![No homocedasteceidad de los resíduos](images/Captura%20de%20pantalla%202021-11-05%20a%20las%2022.21.23.png)
+
+-   **Residuals vs Leverage**: Encontrar valores atípicos e influyentes (puntos leverage). Estas últimas son aquellas que, en caso de ser eliminadas, provocarían cambios en el modelo, por lo que debemos estudiar estos casos y considerar si mantenerlos en el modelo o excluirlos de éste. Son los puntos que aparecen fuera de las líneas rojas, o muy al límite Para nuestro caso encontramos tres observaciones que deberíamos estudiar: 50, 2 y 1 (al límite)
+
+Nota: Puede que una observación influyente no sea un outlier, aunque éstos tienden a tener influencia en el modelo
+
+### *Assumption 4: No autocorrelación de los resíduos*
+
+-   Nota: Muy interesante para el estudio de series temporales, aquí carece de sentido, pero lo ilustramos a modo teórico.
+
+```{r}
+acf(modelo1$residuals)
+```
+
+No existe patrón, la primera línea es la autocorrelación del primer resíduo con el mismo, por lo que siempre será uno. Podríamos decir que los resíduos no están muy correlados.
+
+Nota: Volvemos a repetir que esto es a modo gráfico, no podemos asumir ninguna conclusión sin un test de hipótesis.
+
+La imagen que mostramos a continuación es de unos resíduos con una grán correlación, donde cada resíduo depende de los anteriores y existe una tendencia decreciente:
+
+![](images/Captura%20de%20pantalla%202021-11-05%20a%20las%2022.32.24.png "Resíduos muy autocorrelados")
+
+Contraste de la autocorrelación de los resíduos:
+
+```{r}
+library(snpar)
+runs.test(modelo1$residuals) 
+```
+
+No existen evidencias para no asumir que no existe autocorrelación entre los resíduos.
+
+### Assumption 5 La variable explicativa y los resíduos son incorrelados
+
+```{r}
+cor.test(trainSet$Velocidad, modelo1$residuals)
+```
+
+No existen evidencias en contra de la hipótesis nula de la no correlación de los resíduos y la variable X (velocidad)
+
+### Assumption 9: No multicolinealidad
+
+No es aplicable para un modelo de regresión lineal simple, para que exista multicolinealidad necesito al menos dos variables predictoras.
+
+### Comprobar las condiciones automáticamente
+
+```{r}
+gvlma::gvlma(modelo1)
+```
+
+-   Contraste: Se cumplen las condiciones vs. No se cumplen
+-   Conclusión, al ser un p-valor pequeño, no existen evidencias significativas para afirmar que se cumplen las condiciones para la regresión lineal.
+
+```{r include=FALSE}
+## Homocedasteceidad
+## ggplot(data = Cars, aes(x = Velocidad, y = Distancia)) + 
+##   geom_point(colour = "red4") +
+##   geom_segment(aes(x = 0, y = 5, xend = 30, yend = 150),linetype="dashed") +
+##   geom_segment(aes(x = 0, y = -10, xend = 30, yend = 50),linetype="dashed") ## +
+##   ggtitle("Diagrama de dispersión") +
+##   theme_bw() +
+##   theme(plot.title = element_text(hjust = 0.5))
+```
+
+# Predicciones
+
+```{r}
+Predicciones1<- predict(modelo1,testSet,interval = 'prediction')
+Predicciones1 %>% 
+  kable(booktabs=TRUE,caption = "Predicciones de la distancia. Intervalos de Confianza") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+comparo <- cbind.data.frame(testSet[,3],Predicciones1[,1], testSet[,3]-Predicciones1[,1] )
+names(comparo)<- c("Valor Real","Predicción","Error")
+comparo %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+# index <- testSet[,0]
+index <- c(4	,	5	,	6		,	7	,15	,	18	,21	,23	,	27	,34,35	,	39,	42	,	45	,	47)
+par(mfrow=c(1,1))
+
+plot(index,comparo[,1], main = "Predicciones VS Valor real")
+par(new=T)
+plot(index,comparo[,2],col="red")
+legend(1, 95, legend=c("Line 1", "Line 2"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
+```
