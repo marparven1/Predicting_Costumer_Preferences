@@ -1,8 +1,7 @@
 ---
-title: "Proyecto Blackwell Electronics. Fase 1. Data Science Process"
-subtitle: "Módulo 3. Tarea 2: Predicción de la marca preferida por los clientes"
+title: "Proyecto Blackwell Electronics. Data Science Process"
+subtitle: "Módulo 3 Tarea 2: Predicción de la marca preferida por los clientes"
 author: "Marta Venegas Pardo"
-
 date: "8/Noviembre/2021"
 output:
   prettydoc::html_pretty:
@@ -11,16 +10,17 @@ output:
     toc: yes
     toc_depth: 5
     number_sections: yes
+  pdf_document:
+    toc: yes
+    toc_depth: 5
+    number_sections: yes
 lang: es
 ---
-
 
 ```{r setup, include=FALSE,message=FALSE,warning=FALSE}
 knitr::opts_chunk$set(message=FALSE,warning=FALSE , echo = FALSE
   )
 ```
-
-
 
 ```{r}
 dire<-getwd() 
@@ -39,44 +39,35 @@ library(caret)
 library(mlbench)
 ```
 
-
-
-
-# Introducción (definición del problema)
+# Introducción (definición del problema + objetivos)
 
 ## Objetivos
 
 El equipo de ventas de Blackwell Electronics contrató una empresa de investigación de mercado para realizar una encuensta a los clientes con el siguiente **objetivo**:
 
-- Averiguar, de entre todas las marcas de ordenadores en venta, cuales son las **dos marcas  preferidas** por los clientes. 
+-   Averiguar, de entre las marcas de ordenadores en venta, cual es la **dos marca preferida** por los clientes.
 
-Con esta información, se podrán tomar decisiones sobre que fabricantes se debe buscar una relación estratégica mejor. 
+Con esta información, se podrán tomar decisiones sobre que fabricantes se debe buscar una relación estratégica mejor.
 
-- Sin embargo, como suele ocurrir al hacer una encuesta, las información sobre la preferencia de marcas de ordenador no quedó recogida por completo por lo que no tenemos resultados precisos.
+-   Sin embargo, como suele ocurrir al hacer una encuesta, las información sobre la preferencia de marcas de ordenador no quedó recogida por completo por lo que no tenemos resultados precisos.
 
-- Por ello debemos investigar si las respuestas a *otras preguntas* de la encuesta podrían ayudarnos a predecir la preferencia de marca de ordenador de nuestros clientes
+-   Por ello debemos investigar si las respuestas a *otras preguntas* de la encuesta podrían ayudarnos a predecir la preferencia de marca de ordenador de nuestros clientes.
 
 ## Qué encontraremos en este informe
 
-
 ## Procedimiento para cumplir mis objetivos
 
-- Descripción de datos, pre-procesado, data cleaning y análisis exploratorio
-- Modelado a través de algoritmos de clasificacción (árboles de decisión), en concreto C5.0 y RandomForest
-- Decisión del método que mejor funciona para predecir la marca de ordenador preferida por los clientes
+-   Descripción de datos, pre-procesado, data cleaning y análisis exploratorio
+-   Modelado a través de algoritmos de clasificacción (árboles de decisión), en concreto C5.0 y RandomForest
+-   Decisión del método que mejor funciona para predecir la marca de ordenador preferida por los clientes
 
+# Descripción de los datos
 
+-   Conjuntos de datos:
 
-
-# Dataset
-
-
-- Conjuntos de datos:
-
-  - **CompleteResponses**: Conjunto de datos con 10000 encuestas completas que usaremos para entrenar el modelo y construir un modelo predictivo
-  - **Survey Incomplete**: Dataset para testear el mejor modelo y tratar de predecir la marca preferida por los clientes
-  - **Survey key**: Encuesta (al final del documento)
-  
+    -   **CompleteResponses**: Conjunto de datos con 10000 encuestas completas que usaremos para entrenar el modelo y construir un modelo predictivo
+    -   **Survey Incomplete**: Dataset para testear el mejor modelo y tratar de predecir la marca preferida por los clientes
+    -   **Survey key**: Encuesta (al final del documento)
 
 ```{r}
 DatosCompletos<-read.csv(file="SurveyData/CompleteResponses.csv",header = TRUE,sep = ",",dec ="." )
@@ -84,67 +75,68 @@ DatosCompletos<-read.csv(file="SurveyData/CompleteResponses.csv",header = TRUE,s
 DatosIncompletos<-read.csv(file="SurveyData/SurveyIncomplete.csv",header = TRUE,sep = ",",dec =".")
 ```
 
-
 Vamos a visualizar unas cuantas líneas de los datos:
 
 ```{r}
 DatosCompletos %>% 
   head(10) %>% 
-  kable(booktabs=TRUE,caption = "Datos Completos")
+  kable(booktabs=TRUE,caption = "Datos Completos") %>% 
+  kable_styling(latex_options = "striped")
 ```
-
 
 ```{r}
 DatosIncompletos %>% 
   head(10) %>% 
-  kable(booktabs=TRUE,caption = "Datos incompletos")
+  kable(booktabs=TRUE,caption = "Datos incompletos") %>% 
+  kable_styling(latex_options = "striped")
 ```
 
+## Variables
 
-
-## Descripción de los datos
-
-- Datos de entrenamiento y validación: 9898 registros, 7 variables
-- Datos de testeo: 5000 registros con las mismas 7 variables
+-   Datos de entrenamiento y validación: 9898 registros, 7 variables
+-   Datos de testeo: 5000 registros con las mismas 7 variables
 
 En los conjuntos de datos encontramos 7 variables :
 
-- **Salario**: Salario anual del cliente, en dólares. (Variable numérica)
-- **Edad**: Edad, en años (Variable numérica)
-- **Elevel**: Nivel educativo más alto alcanzado. (Variable categórica). Corresponde a una escala de Likert
+-   **Salario**: Salario anual del cliente, en dólares. (Variable numérica)
 
-  - 0:	Less than High School Degree
-  - 1:	High School Degree
-  - 2:	Some College
-  - 3:	4-Year College Degree
-  - 4:	Master’s, Doctoral or Professional Degree
-- **Car**: Marca de coche del cliente (1-20) (Variable categórica). Ver codificación al final del coumento (en la encuesta)
-- **Zip**: Código postal. (categórica)
+-   **Edad**: Edad, en años (Variable numérica)
 
-  - 0:	New England
-  - 1:	Mid-Atlantic
-  - 2:	East North Central
-  - 3:	West North Central
-  - 4:	South Atlantic
-  - 5:	East South Central
-  - 6:	West South Central
-  - 7:	Mountain
-  - 8:	Pacific
-- **Credit**: Crédito total disponible (variable numérica)
-- **Target. Brand**: Marca de ordenador preferida. (Variable Binaria)
+-   **Elevel**: Nivel educativo más alto alcanzado. (Variable categórica). Corresponde a una escala de Likert
 
-  - 0:	Acer
-  - 1:	Sony
+    -   0: Less than High School Degree
+    -   1: High School Degree
+    -   2: Some College
+    -   3: 4-Year College Degree
+    -   4: Master's, Doctoral or Professional Degree
 
+-   **Car**: Marca de coche del cliente (1-20) (Variable categórica). Ver codificación al final del coumento (en la encuesta)
+
+-   **Zip**: Código postal. (categórica)
+
+    -   0: New England
+    -   1: Mid-Atlantic
+    -   2: East North Central
+    -   3: West North Central
+    -   4: South Atlantic
+    -   5: East South Central
+    -   6: West South Central
+    -   7: Mountain
+    -   8: Pacific
+
+-   **Credit**: Crédito total disponible (variable numérica)
+
+-   **Target. Brand**: Marca de ordenador preferida. (Variable Binaria)
+
+    -   0: Acer
+    -   1: Sony
 
 ```{r}
 # dim(DatosCompletos)
 # dim(DatosInompletos)
 ```
 
-
-
-# Pre-Processing (Limpieza de datos)
+# Preparación de los datos (Limpieza de datos)
 
 ```{r}
 str(DatosCompletos)
@@ -154,32 +146,30 @@ str(DatosCompletos)
 str(DatosIncompletos)
 ```
 
-
 ```{r}
 summary(DatosCompletos)
 ```
+
 ```{r}
 summary(DatosIncompletos)
 ```
 
-
-
-
-
-
 ## Duplicados
+
 ## Missing values
+
 ## Outliers
+
 ## Transformación de variables
 
-### Factorización de las variables 
+### Factorización de las variables
 
 Recodificamos las variables categóricas para una mejor visualización de los datos
 
-- Target: Brand
-- Código Postal
-- Car
-- Nivel educativo
+-   Target: Brand
+-   Código Postal
+-   Car
+-   Nivel educativo
 
 ```{r}
 DatosCompletosCategoricos = DatosCompletos
@@ -230,53 +220,55 @@ DatosIncompletosCategoricos = DatosIncompletosCategoricos%>%
 
 ```
 
-
 ## Creación de variables
 
 # Análisis exploratorio
+
+```{r}
+# Nota para mí: Describiré el DSP, recordando las preguntas de Danielle Sherman
+```
+
 # Modelado y predicción de la marca preferida
 
-
 ## Datos para la predicción de la marca preferida
-## Búsqueda de algoritmos, hiperparámetros y estrategias de optimización para predecir la marca preferida
+
+## Prueba de algoritmos, hiperparámetros y estrategias de optimización para predecir la marca preferida
 
 ### Detección de los mejores algoritmos (decision tree classifiers methods):
 
 #### Algoritmo 1: C5.0
-##### Hiperparametros alg 2…
+
+##### Hiperparametros alg 2...
+
 ##### Balanceo de datos si fuera necesario
 
 #### Algoritmo 2: Random Forest
-##### Hiperparametros…
-##### Balanceo de datos…
 
+##### Hiperparametros...
 
-
-
+##### Balanceo de datos...
 
 ## Validación de los modelos para la predicción de la marca preferida
 
 En este apartado comparamos mediante en Dataset de validación los modelos con todas las estrategias de optimización que hemos decidido aplicar en el apartado anterior.
 
 ### Algoritmo 1: C5.0
-#### Hiperparametros alg 2…
+
+#### Hiperparametros alg 2...
+
 #### Balanceo de datos si fuera necesario
 
 ### Algoritmo 2: Random Forest
-#### Hiperparametros…
-#### Balanceo de datos…
 
+#### Hiperparametros...
 
+#### Balanceo de datos...
 
+## Test del modelo final
 
+### Evaluación del modelo final y testeo
 
-
-## Modelo final
-
-### Evaluación del modelo final y testeo 
-### Análisis de error del modelo final 
-
-
+### Análisis de error del modelo final
 
 # Predicciones
 
@@ -284,83 +276,73 @@ En este apartado comparamos mediante en Dataset de validación los modelos con t
 
 En este apartado exponemos aquellos aspectos interesantes para el negocio que son destacables y que permitan a la dirección establecer estrategias y tomar decisiones.
 
-
-- Métodos utilizados para modelar (resultados/métricas obtenidas)
-- Modelo elegido, porqué es el mejor, nivel de confianza de las predicciones
-- Las respuestas previstas a la pregunta de preferencia de marca para las instancias incompletas
-- Gráfico de las preferencias del clientes (comparación de predicción y valor real)
-
-
+-   Métodos utilizados para modelar (resultados/métricas obtenidas)
+-   Modelo elegido, porqué es el mejor, nivel de confianza de las predicciones
+-   Las respuestas previstas a la pregunta de preferencia de marca para las instancias incompletas
+-   Gráfico de las preferencias del clientes (comparación de predicción y valor real)
 
 # Encuesta (Survey Questions and Response Key)
 
+## ¿Cuál es su salario anual, sin incluir bonus? (Responder con un valor numérico)
 
-			
-## ¿Cuál es su salario anual, sin incluir bonus? (Responder con un valor numérico)	
-			
-## ¿Edad? (Responder con un valor numérico)	
-	
+## ¿Edad? (Responder con un valor numérico)
+
 ## ¿Cuál es el nivel más alto de educación que ha obtenido?
-		
 
-| Value |	Description	|
-|-------|-------------|
-|0	    |   Less than High School Degree		|
-|1	    |   High School Degree		|
-|2	    |   Some College		|
-|3	    |   4-Year College Degree		|
-|4	    |   Master's, Doctoral or Professional Degree		|
-		
-## ¿Cuál es la marca de su coche?	
-		
-Seleccione una entre las siguientes:	
-	
-| Value |	Description	|
-|-------|-------------|
-|1	|BMW		|
-|2	|Buick		|
-|3	|Cadillac		|
-|4	|Chevrolet		|
-|5	|Chrysler		|
-|6	|Dodge		|
-|7	|Ford		|
-|8	|Honda		|
-|9	|Hyundai		|
-|10|	Jeep		|
-|11|	Kia		|
-|12|	Lincoln		|
-|13|	Mazda		|
-|14|	Mercedes Benz		|
-|15|	Mitsubishi		|
-|16|	Nissan		|
-|17|	Ram		|
-|18|	Subaru		|
-|19|	Toyota		|
-|20|	None of the above		|
-			
-			
-## Código postal			
+| Value | Description                               |
+|-------|-------------------------------------------|
+| 0     | Less than High School Degree              |
+| 1     | High School Degree                        |
+| 2     | Some College                              |
+| 3     | 4-Year College Degree                     |
+| 4     | Master's, Doctoral or Professional Degree |
 
+## ¿Cuál es la marca de su coche?
 
-| Value |	Region    	|
-|-------|-------------|	
-|0      |	New England		|
-|1      |	Mid-Atlantic		|
-|2      |	East North Central		|
-|3      |	West North Central		|
-|4      |	South Atlantic		|
-|5      |	East South Central		|
-|6      |	West South Central		|
-|7      |	Mountain		|
-|8      |	Pacific		|
-	
-## ¿Qué crédito tiene disponible?	(Número)	
-	
+Seleccione una entre las siguientes:
+
+| Value | Description       |
+|-------|-------------------|
+| 1     | BMW               |
+| 2     | Buick             |
+| 3     | Cadillac          |
+| 4     | Chevrolet         |
+| 5     | Chrysler          |
+| 6     | Dodge             |
+| 7     | Ford              |
+| 8     | Honda             |
+| 9     | Hyundai           |
+| 10    | Jeep              |
+| 11    | Kia               |
+| 12    | Lincoln           |
+| 13    | Mazda             |
+| 14    | Mercedes Benz     |
+| 15    | Mitsubishi        |
+| 16    | Nissan            |
+| 17    | Ram               |
+| 18    | Subaru            |
+| 19    | Toyota            |
+| 20    | None of the above |
+
+## Código postal
+
+| Value | Region             |
+|-------|--------------------|
+| 0     | New England        |
+| 1     | Mid-Atlantic       |
+| 2     | East North Central |
+| 3     | West North Central |
+| 4     | South Atlantic     |
+| 5     | East South Central |
+| 6     | West South Central |
+| 7     | Mountain           |
+| 8     | Pacific            |
+
+## ¿Qué crédito tiene disponible? (Número)
+
 ## ¿Qué marca de ordenador prefiere?
-			
-	
-| Value |	Region    	|
-|-------|-------------|	
-|0      |	Acer		    |
-|1      |	Sony		    |
 
+| Value | Region |
+|-------|--------|
+| 0     | Acer   |
+| 1     | Sony   |
