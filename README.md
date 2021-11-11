@@ -1,6 +1,8 @@
+# MARTA VENEGAS PARDO (UBIQUM CODE ACADEMY)
 
-# Module 3 Task 1: PROJECT FOR Blackwell Electronics (Predicting_Costumer_Preferences)
-## MARTA VENEGAS PARDO (UBIQUM CODE ACADEMY)
+
+## Module 3 Task 1: PROJECT FOR Blackwell Electronics (Predicting_Costumer_Preferences)
+
 RProject 
 
 Working with Danielle Sherman, the Chief Technology Officer at Blackwell Electronics. 
@@ -12,7 +14,7 @@ recommender systems like the ones used by Amazon and other eCommerce sites.
 
 
 
-## Skills applicable to data mining tasks:
+### Skills applicable to data mining tasks:
  
 - Data mining in e-commerce (e.g. profitability prediction, customer segmentation, product selection strategy)
 - Preprocessing data for data mining (e.g., applying filters, addressing missing data)
@@ -28,7 +30,7 @@ recommender systems like the ones used by Amazon and other eCommerce sites.
 - Presenting data mining results to management.
  
 
-## What will I learn?
+### What will I learn?
 
 - Exploring the patterns in the data to create models to predict new events, like customer product preferences. 
 - Pptimize the initial performance of a classifier by adjusting its parameters. 
@@ -36,13 +38,13 @@ recommender systems like the ones used by Amazon and other eCommerce sites.
 
 
 
-# Predicting_Costumer_Preferences. Task2: Classification: Predict which Brand of Products Customers Prefer
+## Predicting_Costumer_Preferences. Task2: Classification: Predict which Brand of Products Customers Prefer
   - Fase 1. Data Science Process)
 
 
-## Introduction (problem definition)
+### Introduction (problem definition)
 
-### Objectives
+#### Objectives
 
 - The sales team hired a market research company to conduct a survey of Blackwell Electronics customers with the objective of finding out, among all the brands
 of computers in sales, which are the two brands preferred by the customers. With this information, decisions can be made on which manufacturers to seek a better
@@ -55,7 +57,7 @@ accurate results.
 
 
 
-### Procedure to meet my objectives
+#### Procedure to meet my objectives
 
 - Optimization of classification methods through decision trees (C5.0 and RandomForest)
 - Decision of the method that works best for our data
