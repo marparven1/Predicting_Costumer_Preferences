@@ -22,7 +22,7 @@ knitr::opts_chunk$set(message=FALSE,warning=FALSE , echo = FALSE
   )
 ```
 
-```{r}
+```{r librerías}
 dire<-getwd() 
 setwd(dire) 
 
@@ -30,14 +30,17 @@ setwd(dire)
 library(dplyr)
 library(kableExtra)
 library(knitr)
-```
+# Gráficos
+library(ggplot2)
 
-```{r}
+
 #install.packages("caret", dependencies = c("Depends", "Suggests"))
 library(C50)
 library(caret)
 library(mlbench)
 ```
+
+
 
 # Introducción (definición del problema + objetivos)
 
@@ -45,7 +48,7 @@ library(mlbench)
 
 El equipo de ventas de Blackwell Electronics contrató una empresa de investigación de mercado para realizar una encuensta a los clientes con el siguiente **objetivo**:
 
--   Averiguar, de entre las marcas de ordenadores en venta, cual es la **dos marca preferida** por los clientes.
+-   Averiguar, de entre las marcas de ordenadores en venta, cual es la **marca preferida** por los clientes.
 
 Con esta información, se podrán tomar decisiones sobre que fabricantes se debe buscar una relación estratégica mejor.
 
@@ -58,7 +61,7 @@ Con esta información, se podrán tomar decisiones sobre que fabricantes se debe
 ## Procedimiento para cumplir mis objetivos
 
 -   Descripción de datos, pre-procesado, data cleaning y análisis exploratorio
--   Modelado a través de algoritmos de clasificacción (árboles de decisión), en concreto C5.0 y RandomForest
+-   Modelado a través de algoritmos de clasificacción (árboles de decisión), como p0r ejemplo C5.0 y RandomForest, entre otros
 -   Decisión del método que mejor funciona para predecir la marca de ordenador preferida por los clientes
 
 # Descripción de los datos
@@ -138,6 +141,10 @@ En los conjuntos de datos encontramos 7 variables :
 
 # Preparación de los datos (Limpieza de datos)
 
+
+En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
+
+
 ```{r}
 str(DatosCompletos)
 ```
@@ -156,15 +163,53 @@ summary(DatosIncompletos)
 
 ## Duplicados
 
+Mostramos a continuación, las instancias duplicadas en nuestros datasets:
+
+- Duplicados en los datos de entrenamiento:
+
+```{r}
+DatosCompletos[duplicated(DatosCompletos)==TRUE,]
+```
+
+
+- Duplicados en los datos de testeo:
+
+```{r}
+DatosCompletos[duplicated(DatosIncompletos)==TRUE,]
+```
+
+
+Por tanto, nn nuestros conjuntos de datos, no existen instancias duplicadas.
+
 ## Missing values
 
+
+Ambos conjuntos de datos, estan completos.
+
+```{r}
+# summary(DatosCompletos)
+# summary(DatosIncompletos)
+# En caso de haber datos NA, lo veríamos aquí
+```
+
+
 ## Outliers
+
+- En el dataset de entrenamiento _Datos Completos_, no encontramos valores atípicos. 
+- En el conjunto de datos de testeo _Datos Incompletos_, encontramos 63 valores atípicos en la variable Brand (target). Se han considerado a típicos porque es un conjunto de datos con 5000 registros, por lo que supone un `r (63*100)/5000` $\%$ del total de instancias de este conjunto de datos. Esto se debe a que en este conjunto de datos existe un error y no debería haber valores correspondientes a Brand = Sony.
+
+
+```{r}
+#boxplot(DatosCompletos)$out 
+#boxplot(DatosIncompletos)$out
+```
+
 
 ## Transformación de variables
 
 ### Factorización de las variables
 
-Recodificamos las variables categóricas para una mejor visualización de los datos
+Recodificamos las variables categóricas:
 
 -   Target: Brand
 -   Código Postal
@@ -192,7 +237,7 @@ DatosCompletosCategoricos = DatosCompletosCategoricos%>%
 
 
 DatosCompletosCategoricos %>% head(10) %>% 
-  kable(booktabs=TRUE)
+  kable(booktabs=TRUE, caption="Conjunto de datos completo")
 
 
 
@@ -216,17 +261,103 @@ DatosIncompletosCategoricos = DatosIncompletosCategoricos%>%
   select(c(1,2,10,11,9,6,8))
 
 
-# DatosIncompletosCategoricos
+
+DatosIncompletosCategoricos %>%
+  head(10) %>% 
+  kable(booktabs=TRUE, caption="Conjunto de datos incompleto")
 
 ```
 
 ## Creación de variables
 
+De momento no es necesario.
+
+
 # Análisis exploratorio
+
 
 ```{r}
 # Nota para mí: Describiré el DSP, recordando las preguntas de Danielle Sherman
 ```
+
+Comenzaremos con un breve resumen estadístico de nuestros datos:
+
+
+
+
+
+
+```{r}
+summary(DatosCompletosCategoricos)
+
+summary(DatosIncompletosCategoricos)
+```
+
+- **Salario**: Existe una grán diferencia entre el salario máximo (150000 dólares) y el salario mínimo (20000 dólares). El salario medio es similar en ambos conjuntos de datos:
+  - Datos de entrenamiento: 84871 dólares
+  - Datos de testeo: 85794 dólares
+
+- **Edad**: La edad media, en ambos conjuntos de datos es de 50 años. Nuestro comprador más joven tiene 20 años mientras que el más longevo tiene una edad de 80 años.
+
+- **Nivel educativo**: Las proporciones de compradores se mantienen en ambos conjuntos de datos:
+  - Less than HS: 20%
+  - High School: 19.6%
+  - Some college:    20%
+  - College Degree:  20$  
+  - Post College Degree:  20%
+
+
+```{r}
+niv=c(2052,1948,1983,1947,1968)
+nivComp=niv/sum(niv)*100
+```
+
+
+```{r}
+niv2=c(989,988,1017,1000,1006)
+nivComp2=niv2/sum(niv2)*100
+```
+
+- **Marca Coche**: Las marcas de coches más comunes, en nuestros datos son:
+  - Datos de entrenamiento:  Mitsubishi, Subaru, Honda, Buick, Ram y Chrysler
+  - Datos de testeo: Toyota, Subary, Nissan, Honda, Kia, Chrysler
+
+
+- **Código postal**: Las proporciones de compradores se mantienen en ambos conjuntos de datos:
+  - Mountain: 13%
+  - East South Central: 12.8%
+  - Pacific:    12.65%
+  - Mid-Atlantic:    12.5%
+  - West North Central:  12.4%
+  - (Other): 36.5%
+  
+```{r}
+cuenta=c(1155,1135,1112,1108,1087,3216)
+propcompleto=cuenta/sum(cuenta)*100
+cuenta2= c( 569 ,565  , 560   , 549   , 549 ,1616)
+propIncompleto=cuenta2/sum(cuenta2)*100
+```
+
+- **Crédito**: De nuevo, en ambos conjuntos de datos, el crédito medio es prácticamente el mismo.
+  - Datos de entrenamiento: 249176 dólares
+  - Datos de testeo: 249546  dólares
+
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+#p<-ggplot(DatosIncompletos, aes(x=brand,y=salary, #color=brand,group=brand)) +
+#  geom_boxplot()
+#p
+```
+
+
 
 # Modelado y predicción de la marca preferida
 
