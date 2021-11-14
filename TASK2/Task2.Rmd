@@ -32,7 +32,8 @@ library(kableExtra)
 library(knitr)
 # Gráficos
 library(ggplot2)
-
+## Matriz de correlación 
+library(corrplot)
 
 #install.packages("caret", dependencies = c("Depends", "Suggests"))
 library(C50)
@@ -196,7 +197,7 @@ Ambos conjuntos de datos, estan completos.
 ## Outliers
 
 - En el dataset de entrenamiento _Datos Completos_, no encontramos valores atípicos. 
-- En el conjunto de datos de testeo _Datos Incompletos_, encontramos 63 valores atípicos en la variable Brand (target). Se han considerado a típicos porque es un conjunto de datos con 5000 registros, por lo que supone un `r (63*100)/5000` $\%$ del total de instancias de este conjunto de datos. Esto se debe a que en este conjunto de datos existe un error y no debería haber valores correspondientes a Brand = Sony.
+- En el conjunto de datos de testeo _Datos Incompletos_, encontramos 63 valores atípicos en la variable Brand (target). Se han considerado a típicos porque es un conjunto de datos con 5000 registros, por lo que supone un `r (63*100)/5000` $\%$ del total de instancias de este conjunto de datos. Esto se debe a que en este conjunto de datos existe un error y no debería haber valores correspondientes a Brand = Sony. En este conjunto de datos, será la variable que vamos a predecir.
 
 
 ```{r}
@@ -223,7 +224,7 @@ DatosCompletosCategoricos = DatosCompletosCategoricos%>%
     Marca = factor(DatosCompletosCategoricos$brand, 
                    levels = c(0,1), 
                    labels = c("Acer", "Sony")),
-    CódigoPostal = factor(DatosCompletosCategoricos$zipcode,
+    CodigoPostal = factor(DatosCompletosCategoricos$zipcode,
                           levels = c(0,1,2,3,4,5,6,7,8), 
                           labels =   c("New England","Mid-Atlantic","East North Central","West North Central","South Atlantic","East South Central","West South Central","Mountain","Pacific")),
     NivelEduc = factor(DatosCompletosCategoricos$elevel, 
@@ -318,7 +319,7 @@ niv2=c(989,988,1017,1000,1006)
 nivComp2=niv2/sum(niv2)*100
 ```
 
-- **Marca Coche**: Las marcas de coches más comunes, en nuestros datos son:
+- **Marca Coche**: Las marcas de coches más frecuentes, en nuestros datos son:
   - Datos de entrenamiento:  Mitsubishi, Subaru, Honda, Buick, Ram y Chrysler
   - Datos de testeo: Toyota, Subary, Nissan, Honda, Kia, Chrysler
 
@@ -342,21 +343,238 @@ propIncompleto=cuenta2/sum(cuenta2)*100
   - Datos de entrenamiento: 249176 dólares
   - Datos de testeo: 249546  dólares
 
-
+## Resumen según preferencia de marca
 
 
 ```{r}
-
+DatosCompletosCategoricos %>% 
+  group_by(Marca) %>% 
+  summarise(
+  SalarioMedio = mean(salary)  ,
+  EdadMedia = age %>% mean() ,
+  CreditoMedio = credit %>% mean() ,
+) %>% kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida")
 ```
 
 
 
+
+## Representaciones gráficas
+
+
+
 ```{r}
-#p<-ggplot(DatosIncompletos, aes(x=brand,y=salary, #color=brand,group=brand)) +
-#  geom_boxplot()
-#p
+DatosMarca = DatosCompletosCategoricos %>% 
+  group_by(Marca) %>% 
+  count()
 ```
 
+En esta tabla observamos que existen más clientes que prefieren la marca Sony.
+
+
+```{r}
+ggplot(DatosMarca,aes(x=Marca,y=n,color=Marca))+
+  geom_col(fill="white")+
+  labs(title="Marca preferida por los clientes",
+       y="Número de clientes",x="Marca preferida",
+       caption="Fuente: Elaboración propia")
+```
+
+
+### Variables numéricas
+#### Marca y edad
+
+
+```{r}
+p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=age, color=Marca,group=Marca)) +
+  geom_boxplot()+
+  stat_summary(fun.y=mean, geom="point", shape=8, size=5, color="black", fill="red") +
+  scale_y_continuous(breaks   = seq(0,85,by=5))+
+  labs(title="BoxPlot" , subtitle= "Marca vs. Edad", caption="La estrella negra representa el salario medio \n Fuente: Elaboración propia. Conjunto de datos completos")
+p
+```
+
+
+Observamos que para ambos grupos, la edad media de los clientes es prácticamente la misma, 50 años.
+
+#### Marca y salario
+  
+
+```{r}
+p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=salary, color=Marca,group=Marca)) +
+  geom_boxplot()+
+  stat_summary(fun.y=mean, geom="point", shape=8, size=5, color="black", fill="red") +
+  scale_y_continuous(breaks   = seq(40000,140000,by=10000))+
+  labs(title="BoxPlot" , subtitle= "Marca vs. Salario", caption="La estrella negra representa el valor medio \n Fuente: Elaboración propia. Conjunto de datos completos")
+p
+```
+
+
+
+
+Observamos que los clientes que prefieren la marca Sony tienen un salario medio más alto que aquellos cuya marca preferia es Acer:
+
+- Salario medio:
+  - Clientes que prefieren Acer: 74887.63 dólares
+  - Clientes que prefieren Sony: 90944.51	dólares
+  
+  
+#### Marca y crédito  
+  
+  
+```{r}
+p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=credit, color=Marca,group=Marca)) +
+  geom_boxplot()+
+  stat_summary(fun.y=mean, geom="point", shape=4, size=5, color="black", fill="red") +
+  scale_y_continuous(breaks   = seq(0,500000,by=50000))+
+  labs(title="BoxPlot" , subtitle= "Marca vs. Crédito", caption="La estrella negra representa el valor medio \n Fuente: Elaboración propia. Conjunto de datos completos")
+p
+```
+  
+En ambos grupos el crédito medio es bastante similar.
+
+
+### Variables categóricas
+
+
+#### Marca de coche según marca preferida
+
+
+```{r}
+DatosSonyCoches =DatosCompletosCategoricos %>% 
+  filter(Marca=="Sony") %>% 
+  group_by(MarcaCoche) %>% 
+  count()
+
+DatosAcerCoches =DatosCompletosCategoricos %>% 
+  filter(Marca=="Acer") %>% 
+  group_by(MarcaCoche) %>% 
+  count() 
+
+
+par(mfrow=c(1,2))
+
+ggplot(DatosSonyCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
+  geom_col(fill="lightgreen") +
+    labs(title="Marca de coches",
+         subtitle="Datos Sony",
+       y="Frecuencia",x="Marcas de coche",
+       caption="Fuente: Elaboración propia") +
+  scale_y_continuous(labels = scales::comma) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+
+ggplot(DatosAcerCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
+  geom_col(fill="lightgreen") +
+    labs(title="Marca de coches",
+         subtitle="Datos Acer",
+       y="Frecuencia",x="Marcas de coche",
+       caption="Fuente: Elaboración propia") +
+  scale_y_continuous(labels = scales::comma) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+- Para ambos grupos, la marca Mitsubishi está en el top 3 de marcas que usan los clientes.
+- Marca preferida:
+  - Clientes Sony: Subaru
+  - Clientes Acer: Mitsubishi
+
+
+
+#### Nivel de educación según marca preferida
+
+
+```{r}
+DatosSonyEducacion =DatosCompletosCategoricos %>% 
+  filter(Marca=="Sony") %>% 
+  group_by(NivelEduc) %>% 
+  count()
+
+DatosAcerEducacion =DatosCompletosCategoricos %>% 
+  filter(Marca=="Acer") %>% 
+  group_by(NivelEduc) %>% 
+  count()
+
+ggplot(DatosSonyEducacion,aes(x=reorder(NivelEduc,n),y=n)) +
+  geom_col(fill="lightgreen") +
+    labs(title="Nivel de educación",
+         subtitle="Datos Sony",
+       y="Número de clientes",x="Educación",
+       caption="Fuente: Elaboración propia") +
+  scale_y_continuous(breaks = seq(0,1600,by=100)) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1))
+
+
+
+ggplot(DatosAcerEducacion,aes(x=reorder(NivelEduc,n),y=n)) +
+  geom_col(fill="lightgreen") +
+    labs(title="Nivel de educación",
+         subtitle="Datos Acer",
+       y="Número de clientes",x="Educación",
+       caption="Fuente: Elaboración propia") +
+  scale_y_continuous(breaks = seq(0,1600,by=100)) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1))
+
+par(mfrow=c(1,1))
+```
+
+
+
+
+- Para ambos grupos, la mayoría de clientes aún no ha terminado high school. 
+- Tambien para ambos grupos, el segundo más frecuente son aquellos individuos que han comenzado la universidad, a continuación aquellos que tienen estudios postuniversitarios
+- La diferencia se encuentra: La cuarta clase más frecuente para los clientes que prefieren sony son los que tienen un graduado universidario, y la última para los que únicamente tienen terminado el instituto. Para los cientes de Acer estas dos últimas posiciones son al revés
+
+
+
+
+
+
+
+
+
+#### Código postal según marca preferida
+
+
+
+```{r}
+DatosCP = DatosCompletosCategoricos %>% 
+  group_by(Marca,CodigoPostal) %>% 
+  count()
+```
+
+
+```{r}
+# Interleaved histograms
+ggplot(DatosCP, aes(x=CodigoPostal, y=n,color=Marca)) +
+  geom_col(fill="white")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),legend.position="botton")+
+  scale_y_continuous(breaks = seq(0,1200,by=100)) +
+    labs(title="Código postal",
+         subtitle="Según marca preferida",
+       y="Número de clientes",x="Código Postal",
+       caption="Fuente: Elaboración propia")
+
+
+```
+
+## Correlación
+
+Como la variable objetivo es binaria, tenemos que estudiar la correlación de otra forma.
+
+```{r}
+M = cor(DatosCompletos)
+corrplot(M, method = "circle",title = "Matriz de correlación")
+
+
+# Visualice otros metodos gráficos como, 'circle', 'square', 'ellipse',
+# 'number', 'shade', 'color', 'pie',
+```
+
+La variable más corrrealda con la variable objetivo, marca de ordenador preferida, es la bariable salario (0.206)
 
 
 # Modelado y predicción de la marca preferida
@@ -401,7 +619,7 @@ En este apartado comparamos mediante en Dataset de validación los modelos con t
 
 ### Análisis de error del modelo final
 
-# Predicciones
+# Predicciones de la marca prefererida
 
 # Conclusiones y recomendaciones
 
