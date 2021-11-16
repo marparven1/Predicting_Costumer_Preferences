@@ -34,14 +34,15 @@ library(knitr)
 library(ggplot2)
 ## Matriz de correlación 
 library(corrplot)
+# Análisis exploratioro
+library(SmartEDA)
 
+# Modelado
 #install.packages("caret", dependencies = c("Depends", "Suggests"))
 library(C50)
 library(caret)
 library(mlbench)
 ```
-
-
 
 # Introducción (definición del problema + objetivos)
 
@@ -142,9 +143,7 @@ En los conjuntos de datos encontramos 7 variables :
 
 # Preparación de los datos (Limpieza de datos)
 
-
 En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
-
 
 ```{r}
 str(DatosCompletos)
@@ -166,24 +165,21 @@ summary(DatosIncompletos)
 
 Mostramos a continuación, las instancias duplicadas en nuestros datasets:
 
-- Duplicados en los datos de entrenamiento:
+-   Duplicados en los datos de entrenamiento:
 
 ```{r}
 DatosCompletos[duplicated(DatosCompletos)==TRUE,]
 ```
 
-
-- Duplicados en los datos de testeo:
+-   Duplicados en los datos de testeo:
 
 ```{r}
 DatosCompletos[duplicated(DatosIncompletos)==TRUE,]
 ```
 
-
 Por tanto, nn nuestros conjuntos de datos, no existen instancias duplicadas.
 
 ## Missing values
-
 
 Ambos conjuntos de datos, estan completos.
 
@@ -193,18 +189,15 @@ Ambos conjuntos de datos, estan completos.
 # En caso de haber datos NA, lo veríamos aquí
 ```
 
-
 ## Outliers
 
-- En el dataset de entrenamiento _Datos Completos_, no encontramos valores atípicos. 
-- En el conjunto de datos de testeo _Datos Incompletos_, encontramos 63 valores atípicos en la variable Brand (target). Se han considerado a típicos porque es un conjunto de datos con 5000 registros, por lo que supone un `r (63*100)/5000` $\%$ del total de instancias de este conjunto de datos. Esto se debe a que en este conjunto de datos existe un error y no debería haber valores correspondientes a Brand = Sony. En este conjunto de datos, será la variable que vamos a predecir.
+-   En el dataset de entrenamiento *Datos Completos*, no encontramos valores atípicos.
 
 
 ```{r}
 #boxplot(DatosCompletos)$out 
 #boxplot(DatosIncompletos)$out
 ```
-
 
 ## Transformación de variables
 
@@ -269,18 +262,13 @@ DatosIncompletosCategoricos %>%
 
 ```
 
-
 ### Normalización de variables
-
-
 
 ## Creación de variables
 
 De momento no es necesario.
 
-
 # Análisis exploratorio
-
 
 ```{r}
 # Nota para mí: Describiré el DSP, recordando las preguntas de Danielle Sherman
@@ -288,55 +276,51 @@ De momento no es necesario.
 
 Comenzaremos con un breve resumen estadístico de nuestros datos:
 
-
-
-
-
-
 ```{r}
 summary(DatosCompletosCategoricos)
 
 summary(DatosIncompletosCategoricos)
 ```
 
-- **Salario**: Existe una grán diferencia entre el salario máximo (150000 dólares) y el salario mínimo (20000 dólares). El salario medio es similar en ambos conjuntos de datos:
-  - Datos de entrenamiento: 84871 dólares
-  - Datos de testeo: 85794 dólares
+-   **Salario**: Existe una grán diferencia entre el salario máximo (150000 dólares) y el salario mínimo (20000 dólares). El salario medio es similar en ambos conjuntos de datos:
 
-- **Edad**: La edad media, en ambos conjuntos de datos es de 50 años. Nuestro comprador más joven tiene 20 años mientras que el más longevo tiene una edad de 80 años.
+    -   Datos de entrenamiento: 84871 dólares
+    -   Datos de testeo: 85794 dólares
 
-- **Nivel educativo**: Las proporciones de compradores se mantienen en ambos conjuntos de datos:
-  - Less than HS: 20%
-  - High School: 19.6%
-  - Some college:    20%
-  - College Degree:  20$  
-  - Post College Degree:  20%
+-   **Edad**: La edad media, en ambos conjuntos de datos es de 50 años. Nuestro comprador más joven tiene 20 años mientras que el más longevo tiene una edad de 80 años.
 
+-   **Nivel educativo**: Las proporciones de compradores se mantienen en ambos conjuntos de datos:
+
+    -   Less than HS: 20%
+    -   High School: 19.6%
+    -   Some college: 20%
+    -   College Degree: 20\$\
+    -   Post College Degree: 20%
 
 ```{r}
 niv=c(2052,1948,1983,1947,1968)
 nivComp=niv/sum(niv)*100
 ```
 
-
 ```{r}
 niv2=c(989,988,1017,1000,1006)
 nivComp2=niv2/sum(niv2)*100
 ```
 
-- **Marca Coche**: Las marcas de coches más frecuentes, en nuestros datos son:
-  - Datos de entrenamiento:  Mitsubishi, Subaru, Honda, Buick, Ram y Chrysler
-  - Datos de testeo: Toyota, Subary, Nissan, Honda, Kia, Chrysler
+-   **Marca Coche**: Las marcas de coches más frecuentes, en nuestros datos son:
 
+    -   Datos de entrenamiento: Mitsubishi, Subaru, Honda, Buick, Ram y Chrysler
+    -   Datos de testeo: Toyota, Subary, Nissan, Honda, Kia, Chrysler
 
-- **Código postal**: Las proporciones de compradores se mantienen en ambos conjuntos de datos:
-  - Mountain: 13%
-  - East South Central: 12.8%
-  - Pacific:    12.65%
-  - Mid-Atlantic:    12.5%
-  - West North Central:  12.4%
-  - (Other): 36.5%
-  
+-   **Código postal**: Las proporciones de compradores se mantienen en ambos conjuntos de datos:
+
+    -   Mountain: 13%
+    -   East South Central: 12.8%
+    -   Pacific: 12.65%
+    -   Mid-Atlantic: 12.5%
+    -   West North Central: 12.4%
+    -   (Other): 36.5%
+
 ```{r}
 cuenta=c(1155,1135,1112,1108,1087,3216)
 propcompleto=cuenta/sum(cuenta)*100
@@ -344,12 +328,12 @@ cuenta2= c( 569 ,565  , 560   , 549   , 549 ,1616)
 propIncompleto=cuenta2/sum(cuenta2)*100
 ```
 
-- **Crédito**: De nuevo, en ambos conjuntos de datos, el crédito medio es prácticamente el mismo.
-  - Datos de entrenamiento: 249176 dólares
-  - Datos de testeo: 249546  dólares
+-   **Crédito**: De nuevo, en ambos conjuntos de datos, el crédito medio es prácticamente el mismo.
+
+    -   Datos de entrenamiento: 249176 dólares
+    -   Datos de testeo: 249546 dólares
 
 ## Resumen según preferencia de marca
-
 
 ```{r}
 DatosCompletosCategoricos %>% 
@@ -358,14 +342,8 @@ DatosCompletosCategoricos %>%
   SalarioMedio = mean(salary)  ,
   EdadMedia = age %>% mean() ,
   CreditoMedio = credit %>% mean() ,
-) %>% kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida")
+) %>% kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida \n Variables Numéricas")
 ```
-
-
-
-
-## Representaciones gráficas
-
 
 
 ```{r}
@@ -374,21 +352,48 @@ DatosMarca = DatosCompletosCategoricos %>%
   count()
 ```
 
-En esta tabla observamos que existen más clientes que prefieren la marca Sony.
 
 
 ```{r}
-ggplot(DatosMarca,aes(x=Marca,y=n,color=Marca))+
+DatosMarca %>% 
+  mutate(
+    TOTAL = 3744+6154 ,
+    Frecuencia =round( 100*(n / TOTAL) , 2 )) %>% 
+  select(n,Frecuencia) %>% 
+  kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida",col.names = c("Marca","Número de clientes","Frecuencia"),align = "l")
+```
+
+
+
+En esta tabla observamos que existen más clientes que prefieren la marca Sony.
+
+
+## Representaciones gráficas
+
+
+
+
+
+```{r}
+grafPrefe<-ggplot(DatosMarca,aes(x=Marca,y=n,color=Marca))+
   geom_col(fill="white")+
   labs(title="Marca preferida por los clientes",
        y="Número de clientes",x="Marca preferida",
        caption="Fuente: Elaboración propia")
+grafPrefe
 ```
 
-
 ### Variables numéricas
-#### Marca y edad
 
+
+#### Plot SmartEDA
+
+```{r}
+plot4 <- ExpNumViz(DatosCompletosCategoricos,target="Marca",type=1,nlim=3,fname=NULL,col=c("darkgreen","springgreen3","springgreen1"),Page=c(2,2),sample=3)
+plot4[[1]]
+```
+
+#### Marca y edad
 
 ```{r}
 p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=age, color=Marca,group=Marca)) +
@@ -399,11 +404,9 @@ p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=age, color=Marca,group=Marca)
 p
 ```
 
-
 Observamos que para ambos grupos, la edad media de los clientes es prácticamente la misma, 50 años.
 
 #### Marca y salario
-  
 
 ```{r}
 p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=salary, color=Marca,group=Marca)) +
@@ -414,19 +417,15 @@ p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=salary, color=Marca,group=Mar
 p
 ```
 
-
-
-
 Observamos que los clientes que prefieren la marca Sony tienen un salario medio más alto que aquellos cuya marca preferia es Acer:
 
-- Salario medio:
-  - Clientes que prefieren Acer: 74887.63 dólares
-  - Clientes que prefieren Sony: 90944.51	dólares
-  
-  
-#### Marca y crédito  
-  
-  
+-   Salario medio:
+
+    -   Clientes que prefieren Acer: 74887.63 dólares
+    -   Clientes que prefieren Sony: 90944.51 dólares
+
+#### Marca y crédito
+
 ```{r}
 p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=credit, color=Marca,group=Marca)) +
   geom_boxplot()+
@@ -435,9 +434,8 @@ p<-ggplot(DatosCompletosCategoricos, aes(x=Marca,y=credit, color=Marca,group=Mar
   labs(title="BoxPlot" , subtitle= "Marca vs. Crédito", caption="La estrella negra representa el valor medio \n Fuente: Elaboración propia. Conjunto de datos completos")
 p
 ```
-  
-En ambos grupos el crédito medio es bastante similar.
 
+En ambos grupos el crédito medio es bastante similar.
 
 
 
@@ -446,9 +444,7 @@ En ambos grupos el crédito medio es bastante similar.
 
 ### Variables categóricas
 
-
 #### Marca de coche según marca preferida
-
 
 ```{r}
 DatosSonyCoches =DatosCompletosCategoricos %>% 
@@ -487,75 +483,92 @@ ggplot(DatosAcerCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
 
 ```
 
-- Para ambos grupos, la marca Mitsubishi está en el top 3 de marcas que usan los clientes.
-- Marca preferida:
-  - Clientes Sony: Subaru
-  - Clientes Acer: Mitsubishi
 
+
+-   Para ambos grupos, la marca Mitsubishi está en el top 3 de marcas que usan los clientes.
+
+-   Marca preferida:
+
+    -   Clientes Sony: Subaru
+    -   Clientes Acer: Mitsubishi
+
+
+
+```{r}
+## DEBO UNIR EL GRÁFICO
+#df.coc = data.frame(
+#Edades = c(rep(seq(0,101),2)), cm = c(Coc_Mort$`2015`,
+#Coc_Mort$`2016`),
+#Año = c(rep("2016",nrow(tMortalidad2015)),
+#rep("2017",nrow(tMortalidad2016))))
+#
+#ggplot(df.coc, aes(x = Edades, y= cm ,colour= Año)) + 
+#  geom_line(alpha = 1,
+#            linetype = "solid",
+#            stat = "identity",
+#            position = "identity", 
+#            fill = "Black",
+#            size = 0.4)+
+#  labs(title="Cociente de mortalidad (Hombres/Mujeres). ", subtitle = "Galicia, 2015 y #2016.",
+#y="Cociente de mortalidad",
+#x="Edades",
+#caption="Fuente: Elaboración propia") + scale_x_continuous(breaks = c(0,seq(5,100,by=5))) + #theme(axis.text.y = element_text(angle = 0, hjust = 1))+ theme_economist()
+```
 
 
 #### Nivel de educación según marca preferida
 
+```{r}
+# DatosSonyEducacion =DatosCompletosCategoricos %>% 
+#   filter(Marca=="Sony") %>% 
+#   group_by(NivelEduc) %>% 
+#   count()
+# 
+# DatosAcerEducacion =DatosCompletosCategoricos %>% 
+#   filter(Marca=="Acer") %>% 
+#   group_by(NivelEduc) %>% 
+#   count()
+# 
+# ggplot(DatosSonyEducacion,aes(x=reorder(NivelEduc,n),y=n)) +
+#   geom_col(fill="lightgreen") +
+#     labs(title="Nivel de educación",
+#          subtitle="Datos Sony",
+#        y="Número de clientes",x="Educación",
+#        caption="Fuente: Elaboración propia") +
+#   scale_y_continuous(breaks = seq(0,1600,by=100)) +
+#   theme(axis.text.x = element_text(angle = 40, hjust = 1))
+# 
+# 
+# 
+# ggplot(DatosAcerEducacion,aes(x=reorder(NivelEduc,n),y=n)) +
+#   geom_col(fill="lightgreen") +
+#     labs(title="Nivel de educación",
+#          subtitle="Datos Acer",
+#        y="Número de clientes",x="Educación",
+#        caption="Fuente: Elaboración propia") +
+#   scale_y_continuous(breaks = seq(0,1600,by=100)) +
+#   theme(axis.text.x = element_text(angle = 40, hjust = 1))
+# 
+# par(mfrow=c(1,1))
+```
 
 ```{r}
-DatosSonyEducacion =DatosCompletosCategoricos %>% 
-  filter(Marca=="Sony") %>% 
-  group_by(NivelEduc) %>% 
-  count()
-
-DatosAcerEducacion =DatosCompletosCategoricos %>% 
-  filter(Marca=="Acer") %>% 
-  group_by(NivelEduc) %>% 
-  count()
-
-ggplot(DatosSonyEducacion,aes(x=reorder(NivelEduc,n),y=n)) +
-  geom_col(fill="lightgreen") +
-    labs(title="Nivel de educación",
-         subtitle="Datos Sony",
-       y="Número de clientes",x="Educación",
-       caption="Fuente: Elaboración propia") +
-  scale_y_continuous(breaks = seq(0,1600,by=100)) +
-  theme(axis.text.x = element_text(angle = 40, hjust = 1))
-
-
-
-ggplot(DatosAcerEducacion,aes(x=reorder(NivelEduc,n),y=n)) +
-  geom_col(fill="lightgreen") +
-    labs(title="Nivel de educación",
-         subtitle="Datos Acer",
-       y="Número de clientes",x="Educación",
-       caption="Fuente: Elaboración propia") +
-  scale_y_continuous(breaks = seq(0,1600,by=100)) +
-  theme(axis.text.x = element_text(angle = 40, hjust = 1))
-
-par(mfrow=c(1,1))
+plot5 <- ExpCatViz(DatosCompletosCategoricos,target="Marca",fname=NULL,clim=5,col=c("slateblue4","slateblue1"),margin=2,Page = c(2,1),sample=1)
+plot5[[1]]
 ```
 
 
 
-
-- Para ambos grupos, la mayoría de clientes aún no ha terminado high school. 
-- Tambien para ambos grupos, el segundo más frecuente son aquellos individuos que han comenzado la universidad, a continuación aquellos que tienen estudios postuniversitarios
-- La diferencia se encuentra: La cuarta clase más frecuente para los clientes que prefieren sony son los que tienen un graduado universidario, y la última para los que únicamente tienen terminado el instituto. Para los cientes de Acer estas dos últimas posiciones son al revés
-
-
-
-
-
-
-
-
+- Vemos que para ambas marcas preferidas, la mayoría de clientes prefiere la Marca Sony.
+- La mayoría de clientes que prefieren Sony aún no ha terminado high School (63%)
 
 #### Código postal según marca preferida
-
-
 
 ```{r}
 DatosCP = DatosCompletosCategoricos %>% 
   group_by(Marca,CodigoPostal) %>% 
   count()
 ```
-
 
 ```{r}
 # Interleaved histograms
@@ -586,8 +599,6 @@ corrplot(M, method = "circle",title = "Matriz de correlación")
 
 La variable más corrrealda con la variable objetivo, marca de ordenador preferida, es la variable salario (0.206)
 
-
-
 ```{r}
 # Identificando variables predictoras muy correladas
 highCorr <- sum(abs(M[upper.tri(M)]) > .999)
@@ -607,6 +618,34 @@ summary(descrCor2[upper.tri(descrCor2)])
 
 
 
+
+
+
+```{r}
+## Con SmartEDA
+# ExpNumStat(DatosCompletosCategoricos,by="GA",gp="Marca",Qnt=seq(0,1,0.1),MesofShape=2,Outlier=TRUE,round=2)
+```
+
+
+
+```{r}
+# ExpCTable(DatosCompletosCategoricos,Target="Marca",margin=1,clim=10,nlim=3,round=2,bin=NULL,per=F)
+```
+```{r}
+# ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "IV",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
+```
+
+
+
+```{r}
+et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
+# et4
+```
+
+```{r}
+# varimp <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=20,nlim=5,bins=6,Pclass="Yes",plot=TRUE,top=6,Round=2)
+
+```
 
 
 
