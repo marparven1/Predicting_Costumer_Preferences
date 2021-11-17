@@ -808,14 +808,14 @@ RandomForestR
 ```
 
 ```{r}
-rfFit1$results
-rfFit1$bestTune
+#rfFit1$results
+#rfFit1$bestTune
 ```
 - Precisión del 89.75%
 
 
 ```{r}
-rfFit1$metric
+#rfFit1$metric
 ```
 
 
