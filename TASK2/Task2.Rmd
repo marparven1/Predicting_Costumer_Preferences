@@ -651,25 +651,191 @@ et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=
 
 
 
+
+
+
 # Modelado y predicción de la marca preferida
+
+```{r - semilla}
+set.seed(17)
+```
+
 
 ## Datos para la predicción de la marca preferida
 
+Las variables que utilizaremos para predecir la marca preferida por los clientes son las siguientes:
+
+
+
+```{r}
+c("Salario","Edad","Nivel de educación","Marca de coche","Código Postal","Crédito") %>% 
+  kable(booktabs=TRUE,col.names = "Variables predictoras") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+
+### División en datos de entrenamiento y testeo
+
+Tomaremos una partición de 75% 25% para datos de entrenamiento y testeo
+
+```{r - splitting ,echo=TRUE}
+indicesEntrenamiento <- 
+  createDataPartition(DatosCompletosCategoricos$Marca,
+                      p = .75, list = FALSE)
+DatosEntreamiento <- DatosCompletosCategoricos[indicesEntrenamiento,]
+DatosTesteo <-DatosCompletosCategoricos[-indicesEntrenamiento,]
+```
+
+
+Debemos comprobar que las proporciones de clientes que prefieren cada marca se mantengan en ambos conjuntos de datos:
+
+```{r}
+round(prop.table(table(DatosEntreamiento$Marca)),3) %>% 
+  kable(booktabs=TRUE, caption="Proporción para datos de Entrenamiento", col.names = c("Marca","Frecuencia")) 
+
+```
+
+
+```{r}
+round(prop.table(table(DatosTesteo$Marca)),3) %>% 
+  kable(booktabs=TRUE, caption="Proporción para datos de Testeo", col.names = c("Marca","Frecuencia")) 
+```
+
+Nos dan proporciones similares, en torno a un 38/62, por lo que procedemos a la construcción de los modelos
+
 ## Prueba de algoritmos, hiperparámetros y estrategias de optimización para predecir la marca preferida
 
-### Detección de los mejores algoritmos (decision tree classifiers methods):
+Detección de los mejores algoritmos (decision tree classifiers methods):
 
 #### Algoritmo 1: C5.0
 
-##### Hiperparametros alg 2...
+Utilizaremos el algoritmo C5.0. Se trata de un algoritmo de **clasificación**, que genera árboles de decisión.
+Aplicaremos el algoritmo a todas las columnas del dataset de entrenamiento, a excepción de la último columna 7, que es la que queremos predecir (Marca preferida)
 
-##### Balanceo de datos si fuera necesario
+###### Hiperparametros del algoritmo C5.0
+
+- Trials: 7
+
+###### Modelado
+
+```{r}
+#trials, model, winnow
+modeloC5.0 <- C5.0(x = DatosEntreamiento[,-7] , 
+                  y= DatosEntreamiento[,7] ,
+                  
+                  trials = 5   # 9 sube mucho el error
+             #  ,  weights = c(38,62) # NO ESTOY SEGURA
+                 ) 
+#summary(modeloC5.0)
+```
+
+###### Resultados
+
+```{r}
+modeloC5.0$boostResults
+```
+Con estos hiperparámetros consigo un 7% de error.
+
+
+
+
+
+
+
+```{r}
+# Matriz de confusión
+cat("Matriz de confusión \n")
+(MC_C5.0<-matrix(c(2616,192,175,4441),byrow = TRUE,
+                nrow = 2,ncol = 2,
+                dimnames =  list(c("Acer","Sony"),c("Acer","Sony"))))
+```
+
+
+
+```{r}
+# Importancia de las variables en el modelo
+
+ImpC5.0<-cbind.data.frame(
+  c("salary","age","MarcaCoche","credit","NivelEduc","CodigoPostal"),
+  c( 100.00	, 84.19	, 16.49	, 15.93	,  8.78	,  2.64	))
+colnames(ImpC5.0)=c("Variable","Importancia")
+
+ImpC5.0 %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+Las variables más importantes son, con gran diferencia, salario y edad del cliente. Por el contrario, el Código postal parece no ser de gran importancia.
+
+
+```{r}
+ggplot(ImpC5.0, aes(x =sort( Variable)),) +
+  stat_summary(aes(y = Importancia),  geom = "col",color="red",fill="#CC6666")+
+  labs(title = "Histograma de la importancia de las variables en el modelo C5.0",caption = "Fuente: Elaboración propia \n En tanto por ciento")
+```
+
+
+
+
+
 
 #### Algoritmo 2: Random Forest
+
+Algoritmo de clasificación
+
+##### Hiperparametros
+
+- Para validación cruzada, empleamos 10 grupos
+
+```{r}
+#10 fold cross validation
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+```
+
+##### Modelado
+
+```{r}
+#train Random Forest Regression model with a tuneLenght = 1 (trains with 1 mtry value for RandomForest)
+RandomForestR <- train(Marca~., 
+                data = DatosEntreamiento, 
+                method = "rf", 
+                trControl=fitControl, 
+                tuneLength = 1)
+
+#training results
+RandomForestR
+```
+
+```{r}
+rfFit1$results
+rfFit1$bestTune
+```
+- Precisión del 89.75%
+
+
+```{r}
+rfFit1$metric
+```
+
+
+
+##### Resultados
+
+#### Algoritmo 3: KNN
 
 ##### Hiperparametros...
 
 ##### Balanceo de datos...
+
+#### Algoritmo 4: Gradient Boosting
+
+##### Hiperparametros...
+
+##### Balanceo de datos...
+
+
+
 
 ## Validación de los modelos para la predicción de la marca preferida
 
@@ -692,6 +858,10 @@ En este apartado comparamos mediante en Dataset de validación los modelos con t
 ### Evaluación del modelo final y testeo
 
 ### Análisis de error del modelo final
+
+
+
+
 
 # Predicciones de la marca prefererida
 
