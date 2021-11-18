@@ -42,6 +42,7 @@ library(SmartEDA)
 library(C50)
 library(caret)
 library(mlbench)
+library(gbm) # para VARIMP en GB
 ```
 
 # Introducción (definición del problema + objetivos)
@@ -572,7 +573,8 @@ DatosCP = DatosCompletosCategoricos %>%
 
 ```{r}
 # Interleaved histograms
-ggplot(DatosCP, aes(x=CodigoPostal, y=n,color=Marca)) +
+ggplot(DatosCP, aes(y=n ,x=CodigoPostal,color=Marca, fill=Marca)) +
+    # geom_bar(position = "dodge")
   geom_col(fill="white")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1),legend.position="botton")+
   scale_y_continuous(breaks = seq(0,1200,by=100)) +
@@ -580,6 +582,7 @@ ggplot(DatosCP, aes(x=CodigoPostal, y=n,color=Marca)) +
          subtitle="Según marca preferida",
        y="Número de clientes",x="Código Postal",
        caption="Fuente: Elaboración propia")
+
 
 
 ```
@@ -657,7 +660,7 @@ et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=
 # Modelado y predicción de la marca preferida
 
 ```{r - semilla}
-set.seed(17)
+# set.seed(17)
 ```
 
 
@@ -708,16 +711,16 @@ Nos dan proporciones similares, en torno a un 38/62, por lo que procedemos a la 
 
 Detección de los mejores algoritmos (decision tree classifiers methods):
 
-#### Algoritmo 1: C5.0
+### Algoritmo 1: C5.0
 
 Utilizaremos el algoritmo C5.0. Se trata de un algoritmo de **clasificación**, que genera árboles de decisión.
 Aplicaremos el algoritmo a todas las columnas del dataset de entrenamiento, a excepción de la último columna 7, que es la que queremos predecir (Marca preferida)
 
-###### Hiperparametros del algoritmo C5.0
+#### Hiperparametros del algoritmo C5.0
 
 - Trials: 7
 
-###### Modelado
+#### Modelado
 
 ```{r}
 #trials, model, winnow
@@ -730,7 +733,7 @@ modeloC5.0 <- C5.0(x = DatosEntreamiento[,-7] ,
 #summary(modeloC5.0)
 ```
 
-###### Resultados
+#### Resultados
 
 ```{r}
 modeloC5.0$boostResults
@@ -772,7 +775,7 @@ Las variables más importantes son, con gran diferencia, salario y edad del clie
 ```{r}
 ggplot(ImpC5.0, aes(x =sort( Variable)),) +
   stat_summary(aes(y = Importancia),  geom = "col",color="red",fill="#CC6666")+
-  labs(title = "Histograma de la importancia de las variables en el modelo C5.0",caption = "Fuente: Elaboración propia \n En tanto por ciento")
+  labs(title = "Importancia de las variables",subtitle = "Modelo C5.0",caption = "Fuente: elaboración propia")
 ```
 
 
@@ -780,11 +783,11 @@ ggplot(ImpC5.0, aes(x =sort( Variable)),) +
 
 
 
-#### Algoritmo 2: Random Forest
+### Algoritmo 2: Random Forest
 
 Algoritmo de clasificación
 
-##### Hiperparametros
+#### Hiperparametros
 
 - Para validación cruzada, empleamos 10 grupos
 
@@ -793,10 +796,11 @@ Algoritmo de clasificación
 fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
 ```
 
-##### Modelado
+#### Modelado
 
 ```{r}
 #train Random Forest Regression model with a tuneLenght = 1 (trains with 1 mtry value for RandomForest)
+set.seed(17)
 RandomForestR <- train(Marca~., 
                 data = DatosEntreamiento, 
                 method = "rf", 
@@ -808,31 +812,226 @@ RandomForestR
 ```
 
 ```{r}
-#rfFit1$results
-#rfFit1$bestTune
+ImpRF <- varImp(RandomForestR)
+
+
+
+ggplot(ImpRF ) +
+geom_point( color="green", size=4, alpha=0.5)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo Random Forest",caption = "Fuente: elaboración propia")+
+theme_minimal()
+```
+
+Las variables más importantes son el salario, la edad y el crédito disponible.
+
+
+
+#### Resultados
+
+```{r}
+RandomForestR$results
+RandomForestR$bestTune
 ```
 - Precisión del 89.75%
+- Kappa: 76.9%
+
+
+### Algoritmo 3: KNN
+
+#### Hiperparametros
+
+kmax, distance, kernel
+
+
+#### Modelado 
+
+```{r}
+#10 fold cross validation
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+
+set.seed(17)
+KNNmodel <- train(Marca~., 
+                 data = DatosEntreamiento, 
+                 method = "knn",
+                 trControl=fitControl,
+                 tuneLength = 20)
+KNNmodel 
+```
+
+```{r}
+ImpKNN<-varImp(KNNmodel,k=35)
+ImpKNN
+
+
+ggplot(ImpKNN ) +
+geom_point( color="white", size=4, alpha=0.5)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo KNN",caption = "Fuente: elaboración propia")+
+theme_minimal()
+```
+
+La variable más importante a la hora de clasificar la marca preferida de un cliente es el salario, con un 100%. Muy alejado al resto de variables.
+
+La siguiente variable con más importancia es la edad (7.4%). Es decir, tenemos unas métricas un poco pobres, y quizás sea porque el modelo depende tanto del salario, que no es capaz de clasificar bien la marca preferida de los clientes.
+
+
+#### Gráfica del remuestreo
+
+```{r}
+ggplot(KNNmodel)+
+  scale_x_continuous(breaks=seq(0,55,by=5))+
+  scale_y_continuous(n.breaks = 10)+
+  labs(title = "Precisión del modelo en función del valor de k")
+```
+
+
+#### Resultado 
+
+Las mejores métricas se obtienen con los siguientes hiperparámetros:
+
+- k = 35
+
+
+Métricas obtenidas:
+
+- Precisión: 73.27%
+- Kappa: 0.43
+
+
+
+### Algoritmo 4: Stochastic Gradient Boosting
+
+#### Hiperparametros
+
+Los hiperparámetros admisibles son:
+
+- Número de árboles (iteraciones)
+- Complejidad del árbol (interaction.depth)
+- Learning rate: shrinkage
+- Número mínimo de muestras de conjuntos de entrenamiento en un nodo para comenzar a dividir (n.minobsinnode)
+
+Nosotros crearemos una malla con los siguientes hiperparámetros, para ver cuáles son aquellos que nos dan un modelo óptimo
+
+- Max Depth: 1,5,9
+- Número de árboles: 3  6  9 12 15 18 21 24 27 30 33 36 39 42 45 48 51 54 57 60
+- Learning rate: 0.1
+- Número de muestras: 7
+
+
+
+#### Modelado 
+
+
 
 
 ```{r}
-#rfFit1$metric
+#10 fold cross validation
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+
+# Malla para hiperparámetros
+gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
+                        n.trees = (1:20)*3, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 7)
+
+
+set.seed(17)
+GradientBoostingR <- train(Marca~., 
+                data = DatosEntreamiento, 
+                method = "gbm", 
+                trControl=fitControl, 
+              #  tuneLength = 1, 
+                tuneGrid = gbmGrid)
+
+#training results
+GradientBoostingR
+
+
+gbmBestGrid <-  expand.grid(interaction.depth = 9, 
+                        n.trees = 30, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 7)
+
+BestGradientBoostingR <- train(Marca~., 
+                data = DatosEntreamiento, 
+                method = "gbm", 
+                trControl=fitControl, 
+              #  tuneLength = 1, 
+                tuneGrid = gbmBestGrid)
+
+BestGradientBoostingR 
+
+```
+
+
+```{r}
+ImpGB <-varImp(GradientBoostingR,numTrees=30)
+ImpGB
+
+
+ggplot(ImpGB ) +
+geom_point( color="red", size=4, alpha=0.6)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo Gradient Boosting",caption = "Fuente: elaboración propia")+
+theme_light() 
+
+# ggplot(ImpGB)
+```
+En este modelo, las variables más importantes, con grán diferencia son: el salario y la edad.
+
+#### Gráfica del remuestreo
+
+Para examinar la relación entre la estiamción del rendimiento del modelo y los parámetros de ajuste.
+
+examinar la relación entre las estimaciones de rendimiento y los parámetros de ajuste
+
+```{r}
+trellis.par.set(caretTheme())
+plot(GradientBoostingR,main="Precisión del modelo según hiperparámetros")
+
+  
+#ggplot(GradientBoostingR)+
+#labs(title = "Precisión del modelo en función del valor de k")
 ```
 
 
 
-##### Resultados
 
-#### Algoritmo 3: KNN
+#### Resultados
 
-##### Hiperparametros...
 
-##### Balanceo de datos...
+ 
+Las mejores métricas se obtienen con los siguientes hiperparámetros:
 
-#### Algoritmo 4: Gradient Boosting
+- Número de árboles: 30
+- Max Depth: 9
+- Learning rate: 0.1
 
-##### Hiperparametros...
 
-##### Balanceo de datos...
+Métricas obtenidas:
+
+- Precisión: 92.42%
+- Kappa: 0.8392853
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -852,6 +1051,9 @@ En este apartado comparamos mediante en Dataset de validación los modelos con t
 #### Hiperparametros...
 
 #### Balanceo de datos...
+
+
+
 
 ## Test del modelo final
 
