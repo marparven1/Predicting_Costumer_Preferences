@@ -724,6 +724,7 @@ Aplicaremos el algoritmo a todas las columnas del dataset de entrenamiento, a ex
 
 ```{r}
 #trials, model, winnow
+set.seed(17)
 modeloC5.0 <- C5.0(x = DatosEntreamiento[,-7] , 
                   y= DatosEntreamiento[,7] ,
                   
@@ -738,7 +739,7 @@ modeloC5.0 <- C5.0(x = DatosEntreamiento[,-7] ,
 ```{r}
 modeloC5.0$boostResults
 ```
-Con estos hiperparámetros consigo un 7% de error.
+Con estos hiperparámetros consigo un 5.4% de error.
 
 
 
@@ -749,7 +750,7 @@ Con estos hiperparámetros consigo un 7% de error.
 ```{r}
 # Matriz de confusión
 cat("Matriz de confusión \n")
-(MC_C5.0<-matrix(c(2616,192,175,4441),byrow = TRUE,
+(MC_C5.0<-matrix(c(2678,130,144,4472),byrow = TRUE,
                 nrow = 2,ncol = 2,
                 dimnames =  list(c("Acer","Sony"),c("Acer","Sony"))))
 ```
@@ -759,9 +760,17 @@ cat("Matriz de confusión \n")
 ```{r}
 # Importancia de las variables en el modelo
 
+# 100.00%	salary
+# 82.53%	age
+# 38.39%	MarcaCoche
+# 35.94%	NivelEduc
+# 22.24%	CodigoPostal
+# 21.43%	credit
+
+
 ImpC5.0<-cbind.data.frame(
   c("salary","age","MarcaCoche","credit","NivelEduc","CodigoPostal"),
-  c( 100.00	, 84.19	, 16.49	, 15.93	,  8.78	,  2.64	))
+  c( 100,82.53,38.39,35.94,22.24,21.43	))
 colnames(ImpC5.0)=c("Variable","Importancia")
 
 ImpC5.0 %>% 
@@ -904,7 +913,7 @@ Métricas obtenidas:
 
 
 
-### Algoritmo 4: Stochastic Gradient Boosting
+### Algoritmo 4: Stochastic Gradient Boosting (Automathic Grid)
 
 #### Hiperparametros
 
@@ -917,25 +926,23 @@ Los hiperparámetros admisibles son:
 
 Nosotros crearemos una malla con los siguientes hiperparámetros, para ver cuáles son aquellos que nos dan un modelo óptimo
 
-- Max Depth: 1,5,9
-- Número de árboles: 3  6  9 12 15 18 21 24 27 30 33 36 39 42 45 48 51 54 57 60
+- Max Depth: 1,2,3,4,5
+- Número de árboles: 50 100 150 200 250
 - Learning rate: 0.1
+- tuneLength = 5
 - Número de muestras: 7
 
 
 
 #### Modelado 
 
-
-
-
 ```{r}
 #10 fold cross validation
 fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
 
 # Malla para hiperparámetros
-gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
-                        n.trees = (1:20)*3, 
+gbmGrid <-  expand.grid(interaction.depth = c(1,2,3,4,5,9), 
+                        n.trees = seq(50,250,by=50), 
                         shrinkage = 0.1,
                         n.minobsinnode = 7)
 
@@ -945,26 +952,15 @@ GradientBoostingR <- train(Marca~.,
                 data = DatosEntreamiento, 
                 method = "gbm", 
                 trControl=fitControl, 
-              #  tuneLength = 1, 
+               tuneLength = 5, 
                 tuneGrid = gbmGrid)
 
 #training results
 GradientBoostingR
 
-
-gbmBestGrid <-  expand.grid(interaction.depth = 9, 
-                        n.trees = 30, 
-                        shrinkage = 0.1,
-                        n.minobsinnode = 7)
-
-BestGradientBoostingR <- train(Marca~., 
-                data = DatosEntreamiento, 
-                method = "gbm", 
-                trControl=fitControl, 
-              #  tuneLength = 1, 
-                tuneGrid = gbmBestGrid)
-
-BestGradientBoostingR 
+#gbmBestGrid <-  expand.grid(interaction.depth = 9, n.trees = 30, shrinkage = 0.1,n.minobsinnode = 7)
+#BestGradientBoostingR <- train(Marca~., data = DatosEntreamiento, method = "gbm", trControl=fitControl, tuneLength = 5, tuneGrid = gbmBestGrid)
+#BestGradientBoostingR 
 
 ```
 
@@ -994,7 +990,7 @@ examinar la relación entre las estimaciones de rendimiento y los parámetros de
 
 ```{r}
 trellis.par.set(caretTheme())
-plot(GradientBoostingR,main="Precisión del modelo según hiperparámetros")
+plot(GradientBoostingR,main="Precisión del modelo según hiperparámetros  \n Gradient Boosting Automatic Grid)")
 
   
 #ggplot(GradientBoostingR)+
@@ -1010,15 +1006,15 @@ plot(GradientBoostingR,main="Precisión del modelo según hiperparámetros")
  
 Las mejores métricas se obtienen con los siguientes hiperparámetros:
 
-- Número de árboles: 30
-- Max Depth: 9
+- Número de árboles: 200
+- Max Depth: 4
 - Learning rate: 0.1
 
 
 Métricas obtenidas:
 
-- Precisión: 92.42%
-- Kappa: 0.8392853
+- Precisión: 92.60%
+- Kappa: 84.34%
 
 
 
@@ -1036,21 +1032,25 @@ Métricas obtenidas:
 
 
 
-## Validación de los modelos para la predicción de la marca preferida
 
-En este apartado comparamos mediante en Dataset de validación los modelos con todas las estrategias de optimización que hemos decidido aplicar en el apartado anterior.
+## Comparación de las métricas según los diferentes modelos
 
-### Algoritmo 1: C5.0
 
-#### Hiperparametros alg 2...
 
-#### Balanceo de datos si fuera necesario
+```{r}
+#Modelos <- c("C5.0","Random Forest","KNN","Gradient Boosting (Automatic Grid)")
 
-### Algoritmo 2: Random Forest
 
-#### Hiperparametros...
+#Precision<-c("-",89.72,72.27,92.60)
+#Kappa<-c("-",78.12,40.88,84.34)
 
-#### Balanceo de datos...
+#cbind.data.frame(Modelos,Precision,Kappa) %>% 
+#  kable(booktabs=TRUE,caption = "Resultados de los modelos") %>% 
+#  kable_styling(latex_options = "striped")
+```
+
+
+
 
 
 
