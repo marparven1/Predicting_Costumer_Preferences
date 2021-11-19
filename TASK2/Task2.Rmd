@@ -30,6 +30,7 @@ setwd(dire)
 library(dplyr)
 library(kableExtra)
 library(knitr)
+
 # Gráficos
 library(ggplot2)
 ## Matriz de correlación 
@@ -660,7 +661,7 @@ et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=
 # Modelado y predicción de la marca preferida
 
 ```{r - semilla}
-# set.seed(17)
+#set.seed(17)
 ```
 
 
@@ -680,14 +681,21 @@ c("Salario","Edad","Nivel de educación","Marca de coche","Código Postal","Cré
 
 ### División en datos de entrenamiento y testeo
 
-Tomaremos una partición de 75% 25% para datos de entrenamiento y testeo
+Tomaremos una partición de 80% 20% para datos de entrenamiento y testeo
 
 ```{r - splitting ,echo=TRUE}
+set.seed(17)
 indicesEntrenamiento <- 
   createDataPartition(DatosCompletosCategoricos$Marca,
-                      p = .75, list = FALSE)
+                      p = .8, list = FALSE)
 DatosEntreamiento <- DatosCompletosCategoricos[indicesEntrenamiento,]
 DatosTesteo <-DatosCompletosCategoricos[-indicesEntrenamiento,]
+
+set.seed(17)
+indicesValidacion <- createDataPartition(DatosEntreamiento$Marca,
+                      p = .8, list = FALSE)
+DatosEntreamientoValidacion <- DatosCompletosCategoricos[indicesValidacion,]
+DatosTesteoValidacion <-DatosCompletosCategoricos[-indicesValidacion,]
 ```
 
 
@@ -696,7 +704,6 @@ Debemos comprobar que las proporciones de clientes que prefieren cada marca se m
 ```{r}
 round(prop.table(table(DatosEntreamiento$Marca)),3) %>% 
   kable(booktabs=TRUE, caption="Proporción para datos de Entrenamiento", col.names = c("Marca","Frecuencia")) 
-
 ```
 
 
@@ -711,81 +718,63 @@ Nos dan proporciones similares, en torno a un 38/62, por lo que procedemos a la 
 
 Detección de los mejores algoritmos (decision tree classifiers methods):
 
+```{r}
+# Para todos los modelos
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1,
+                          # verboseIter =TRUE 
+)
+```
+
+
+
 ### Algoritmo 1: C5.0
 
 Utilizaremos el algoritmo C5.0. Se trata de un algoritmo de **clasificación**, que genera árboles de decisión.
 Aplicaremos el algoritmo a todas las columnas del dataset de entrenamiento, a excepción de la último columna 7, que es la que queremos predecir (Marca preferida)
 
+
 #### Hiperparametros del algoritmo C5.0
 
-- Trials: 7
+- Número de intentos (tune length): 5
+- Validación cruzaza con 10 grupos y una repetición
 
 #### Modelado
 
-```{r}
-#trials, model, winnow
+```{r echo=TRUE}
 set.seed(17)
-modeloC5.0 <- C5.0(x = DatosEntreamiento[,-7] , 
-                  y= DatosEntreamiento[,7] ,
-                  
-                  trials = 5   # 9 sube mucho el error
-             #  ,  weights = c(38,62) # NO ESTOY SEGURA
-                 ) 
-#summary(modeloC5.0)
+modeloC5.0 <- train(Marca~., 
+                data = DatosEntreamientoValidacion, 
+                method = "C5.0", 
+                trControl=fitControl, 
+                tuneLength = 5)
+summary(modeloC5.0)
 ```
 
+
+
+```{r}
+ImpC5.0<-varImp(modeloC5.0)
+ImpC5.0
+
+
+ggplot(ImpC5.0 ) +
+geom_point( color="white", size=4, alpha=0.5)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo KNN",caption = "Fuente: elaboración propia")+
+theme_minimal()
+```
 #### Resultados
 
-```{r}
-modeloC5.0$boostResults
-```
-Con estos hiperparámetros consigo un 5.4% de error.
+
+Con estos hiperparámetros consigo un 6.4% de error.
 
 
 
 
 
-
-
-```{r}
-# Matriz de confusión
-cat("Matriz de confusión \n")
-(MC_C5.0<-matrix(c(2678,130,144,4472),byrow = TRUE,
-                nrow = 2,ncol = 2,
-                dimnames =  list(c("Acer","Sony"),c("Acer","Sony"))))
-```
-
-
-
-```{r}
-# Importancia de las variables en el modelo
-
-# 100.00%	salary
-# 82.53%	age
-# 38.39%	MarcaCoche
-# 35.94%	NivelEduc
-# 22.24%	CodigoPostal
-# 21.43%	credit
-
-
-ImpC5.0<-cbind.data.frame(
-  c("salary","age","MarcaCoche","credit","NivelEduc","CodigoPostal"),
-  c( 100,82.53,38.39,35.94,22.24,21.43	))
-colnames(ImpC5.0)=c("Variable","Importancia")
-
-ImpC5.0 %>% 
-  kable(booktabs=TRUE) %>% 
-  kable_styling(latex_options = "striped")
-```
-
-Las variables más importantes son, con gran diferencia, salario y edad del cliente. Por el contrario, el Código postal parece no ser de gran importancia.
-
-
-```{r}
-ggplot(ImpC5.0, aes(x =sort( Variable)),) +
-  stat_summary(aes(y = Importancia),  geom = "col",color="red",fill="#CC6666")+
-  labs(title = "Importancia de las variables",subtitle = "Modelo C5.0",caption = "Fuente: elaboración propia")
-```
+Hay varias variables importantes de cara a predecir la marca preferida.
 
 
 
@@ -798,23 +787,19 @@ Algoritmo de clasificación
 
 #### Hiperparametros
 
-- Para validación cruzada, empleamos 10 grupos
+- Número de intentos (tune length): 5
+- Validación cruzaza con 10 grupos y una repetición
 
-```{r}
-#10 fold cross validation
-fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
-```
 
 #### Modelado
 
 ```{r}
-#train Random Forest Regression model with a tuneLenght = 1 (trains with 1 mtry value for RandomForest)
 set.seed(17)
 RandomForestR <- train(Marca~., 
-                data = DatosEntreamiento, 
+                data = DatosEntreamientoValidacion, 
                 method = "rf", 
                 trControl=fitControl, 
-                tuneLength = 1)
+                tuneLength = 5)
 
 #training results
 RandomForestR
@@ -822,8 +807,6 @@ RandomForestR
 
 ```{r}
 ImpRF <- varImp(RandomForestR)
-
-
 
 ggplot(ImpRF ) +
 geom_point( color="green", size=4, alpha=0.5)+
@@ -844,31 +827,32 @@ Las variables más importantes son el salario, la edad y el crédito disponible.
 RandomForestR$results
 RandomForestR$bestTune
 ```
-- Precisión del 89.75%
-- Kappa: 76.9%
+- Precisión del 92.36%
+- Kappa: 83.90%
 
+Hiperparámetros del mejor modelo: mtry=10
 
 ### Algoritmo 3: KNN
 
 #### Hiperparametros
 
-kmax, distance, kernel
 
+- Número de intentos (tune length): 5
+- Validación cruzaza con 10 grupos y una repetición
 
 #### Modelado 
 
 ```{r}
-#10 fold cross validation
-fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
 
 set.seed(17)
 KNNmodel <- train(Marca~., 
-                 data = DatosEntreamiento, 
+                 data = DatosEntreamientoValidacion, 
                  method = "knn",
                  trControl=fitControl,
-                 tuneLength = 20)
+                 tuneLength = 5)
 KNNmodel 
 ```
+
 
 ```{r}
 ImpKNN<-varImp(KNNmodel,k=35)
@@ -886,7 +870,7 @@ theme_minimal()
 
 La variable más importante a la hora de clasificar la marca preferida de un cliente es el salario, con un 100%. Muy alejado al resto de variables.
 
-La siguiente variable con más importancia es la edad (7.4%). Es decir, tenemos unas métricas un poco pobres, y quizás sea porque el modelo depende tanto del salario, que no es capaz de clasificar bien la marca preferida de los clientes.
+La siguiente variable con más importancia es la edad (8.44%). Es decir, tenemos unas métricas un poco pobres, y quizás sea porque el modelo depende tanto del salario, que no es capaz de clasificar bien la marca preferida de los clientes.
 
 
 #### Gráfica del remuestreo
@@ -903,13 +887,14 @@ ggplot(KNNmodel)+
 
 Las mejores métricas se obtienen con los siguientes hiperparámetros:
 
-- k = 35
+- k = 11
 
 
 Métricas obtenidas:
 
-- Precisión: 73.27%
-- Kappa: 0.43
+- Precisión: 71.11%
+- Kappa: 38.64%
+
 
 
 
@@ -937,9 +922,6 @@ Nosotros crearemos una malla con los siguientes hiperparámetros, para ver cuál
 #### Modelado 
 
 ```{r}
-#10 fold cross validation
-fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
-
 # Malla para hiperparámetros
 gbmGrid <-  expand.grid(interaction.depth = c(1,2,3,4,5,9), 
                         n.trees = seq(50,250,by=50), 
@@ -949,19 +931,13 @@ gbmGrid <-  expand.grid(interaction.depth = c(1,2,3,4,5,9),
 
 set.seed(17)
 GradientBoostingR <- train(Marca~., 
-                data = DatosEntreamiento, 
+                data = DatosEntreamientoValidacion, 
                 method = "gbm", 
                 trControl=fitControl, 
-               tuneLength = 5, 
+              # tuneLength = 5, 
                 tuneGrid = gbmGrid)
 
-#training results
 GradientBoostingR
-
-#gbmBestGrid <-  expand.grid(interaction.depth = 9, n.trees = 30, shrinkage = 0.1,n.minobsinnode = 7)
-#BestGradientBoostingR <- train(Marca~., data = DatosEntreamiento, method = "gbm", trControl=fitControl, tuneLength = 5, tuneGrid = gbmBestGrid)
-#BestGradientBoostingR 
-
 ```
 
 
@@ -1002,51 +978,142 @@ plot(GradientBoostingR,main="Precisión del modelo según hiperparámetros  \n G
 
 #### Resultados
 
-
  
 Las mejores métricas se obtienen con los siguientes hiperparámetros:
 
-- Número de árboles: 200
+- Número de árboles: 250
 - Max Depth: 4
 - Learning rate: 0.1
+- n.minobsinnode = 7
 
 
 Métricas obtenidas:
 
-- Precisión: 92.60%
-- Kappa: 84.34%
+- Precisión: 92.48%
+- Kappa: 84.17%
+
+
+
+## Validación
 
 
 
 
+### Algoritmo 1: C5.0
+
+Hiperparámetros del mejor modelo:
+
+```{r}
+modeloC5.0$bestTune
+```
 
 
 
+Modelamos con estos hiperparámetros
+
+```{r}
+C50_Grid <-  expand.grid(trials=30, model="rules",winnow=FALSE)
+
+set.seed(17)
+BestModelC50 <- train(Marca~., 
+                data = DatosEntreamientoValidacion, 
+                method = "C5.0", 
+                trControl=fitControl,
+                tuneGrid = C50_Grid)
+```
+
+#### Predicciónes 
+
+```{r}
+PredValC50<-predict(BestModelC50, newdata = DatosTesteoValidacion)
+#DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValC50,]
+nrow(DatosTesteoValidacion)-nrow(DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValC50,])
+```
+
+
+### Algoritmo 2: Random Forest
+
+```{r}
+RandomForestR$bestTune
+```
 
 
 
+Modelamos con estos hiperparámetros
 
-
-
-
-
-
-
-
-## Comparación de las métricas según los diferentes modelos
 
 
 
 ```{r}
-#Modelos <- c("C5.0","Random Forest","KNN","Gradient Boosting (Automatic Grid)")
+RF_Grid <-  expand.grid(model="rules",winnow=FALSE,trials=10)
+
+set.seed(17)
+BestModelRandomForest <- train(Marca~., 
+                data = DatosEntreamientoValidacion, 
+                method = "C5.0", 
+                trControl=fitControl,
+                tuneGrid = RF_Grid)
+```
 
 
-#Precision<-c("-",89.72,72.27,92.60)
-#Kappa<-c("-",78.12,40.88,84.34)
 
-#cbind.data.frame(Modelos,Precision,Kappa) %>% 
-#  kable(booktabs=TRUE,caption = "Resultados de los modelos") %>% 
-#  kable_styling(latex_options = "striped")
+
+```{r}
+PredValRandomForest<-predict(BestModelRandomForest, newdata = DatosTesteoValidacion)
+#DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValRandomForest,]
+nrow(DatosTesteoValidacion)-nrow(DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValRandomForest,])
+```
+
+
+### Algoritmo 3: KNN
+
+
+### Algoritmo 4: Gradient Boosting
+
+
+
+
+
+
+
+### Comparación de las métricas según los diferentes modelos
+
+
+
+
+```{r}
+Modelos <- c("C5.0","Random Forest","KNN","Gradient Boosting (Automatic Grid)")
+Precision<-c(97.53,88.91,72.22,92.30)
+Kappa<-c("-",76.41,40.86,83.69)
+
+cbind.data.frame(Modelos,Precision,Kappa) %>% 
+  kable(booktabs=TRUE,caption = "Resultados de los modelos") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+
+
+Por tanto, el modelo que nos da las mejore métricas es el modelo C5.0
+
+
+
+
+
+## Test del modelo final (C5.0)
+
+### Evaluación del modelo final y testeo
+
+```{r}
+#trials, model, winnow
+set.seed(17)
+modeloC5.0_Test <- C5.0(x = DatosTesteo[,-7] , 
+                  y= DatosTesteo[,7] ,
+                  
+                  trials = 5   # 9 sube mucho el error
+             #  ,  weights = c(38,62) # NO ESTOY SEGURA
+                 ) 
+summary(modeloC5.0_Test)
 ```
 
 
@@ -1055,12 +1122,60 @@ Métricas obtenidas:
 
 
 
-## Test del modelo final
 
-### Evaluación del modelo final y testeo
+
+```{r}
+# Importancia de las variables en el modelo
+
+
+ImpC5.0Test<-cbind.data.frame(
+  c("salary","age","Nivel Educación","Marca Coche","Crédito","CodigoPostal"),
+  c( 100,84.92,24.41,7.84,6.18,0))
+colnames(ImpC5.0Test)=c("Variable","Importancia")
+
+ImpC5.0Test %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+Las variables más importantes son, con gran diferencia, salario y edad del cliente. Por el contrario, el Código postal parece no ser de gran importancia.
+
+
+```{r}
+ggplot(ImpC5.0Test, aes(x =sort( Variable)),) +
+  stat_summary(aes(y = Importancia),  geom = "col",color="red",fill="#CC6666")+
+  labs(title = "Importancia de las variables",subtitle = "Modelo C5.0",caption = "Fuente: elaboración propia")
+```
+
+
+
+
+
+
 
 ### Análisis de error del modelo final
 
+
+```{r}
+# Matriz de confusión
+cat("Matriz de confusión \n")
+
+
+(MC_C5.0<-matrix(c(855  ,  81   ,  74 , 1464),byrow = TRUE,
+                nrow = 2,ncol = 2,
+                dimnames =  list(c("Acer","Sony"),c("Acer","Sony"))))
+```
+
+```{r}
+precisionTest <- (855+1464)/(855+1464+74+81)
+cat("La precisión del modelo C5.0 en los datos de testeo es del:", 100* precisionTest)
+```
+
+
+```{r}
+modeloC5.0_Test$boostResults
+```
+Con estos hiperparámetros consigo un 6.3% de error (en los datos de entrenamiento era del 5%)
 
 
 
