@@ -33,6 +33,7 @@ library(knitr)
 
 # Gráficos
 library(ggplot2)
+library(scales)
 ## Matriz de correlación 
 library(corrplot)
 # Análisis exploratioro
@@ -1022,13 +1023,24 @@ BestModelC50 <- train(Marca~.,
                 tuneGrid = C50_Grid)
 ```
 
-#### Predicciónes 
+#### Predicciones y evaluación del rendimiento
 
 ```{r}
 PredValC50<-predict(BestModelC50, newdata = DatosTesteoValidacion)
 #DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValC50,]
-nrow(DatosTesteoValidacion)-nrow(DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValC50,])
+
+confuC50<- confusionMatrix(PredValC50, DatosTesteoValidacion$Marca)
+#table(Real=DatosTesteoValidacion$Marca,Pred=PredValC50)
+confuC50
+
+cat("Precisión:",100*confuC50$overall[1],"\n")
+cat("Kappa:",100*confuC50$overall[2],"\n")
+
+# cat("\n Matriz de confusión para el modelo C50: \n")
+# confuC50$table
 ```
+
+
 
 
 ### Algoritmo 2: Random Forest
@@ -1056,19 +1068,106 @@ BestModelRandomForest <- train(Marca~.,
 ```
 
 
+#### Predicciones y evaluación del rendimiento
 
 
 ```{r}
-PredValRandomForest<-predict(BestModelRandomForest, newdata = DatosTesteoValidacion)
-#DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValRandomForest,]
-nrow(DatosTesteoValidacion)-nrow(DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValRandomForest,])
+PredValRF<-predict(BestModelRandomForest, newdata = DatosTesteoValidacion)
+#DatosTesteoValidacion[DatosTesteoValidacion$Marca==PredValC50,]
+
+confuRF<-confusionMatrix(PredValRF, DatosTesteoValidacion$Marca)
+# table(Real=DatosTesteoValidacion$Marca,Pred=PredValRF)
+confuRF
+
+cat("Precisión:",100*confuRF$overall[1],"\n")
+cat("Kappa:",100*confuRF$overall[2],"\n")
+
+#cat("\n Matriz de confusión para el modelo Random Forest: \n")
+#confuRF$table
+
 ```
+
+
 
 
 ### Algoritmo 3: KNN
 
 
+```{r}
+KNNmodel$bestTune
+```
+
+
+
+
+
+
+#### Predicciones y evaluación del rendimiento
+
+
+```{r}
+PredValKnn<-predict(KNNmodel,newdata =DatosTesteoValidacion )
+
+confuKnn<- confusionMatrix(PredValKnn, DatosTesteoValidacion$Marca)
+#table(Real=DatosTesteoValidacion$Marca,Pred=PredValKnn)
+confuKnn
+
+
+cat("Precisión:",100*confuKnn$overall[1],"\n")
+cat("Kappa:",100*confuKnn$overall[2],"\n")
+
+# cat("\n Matriz de confusión para el modelo KNN: \n")
+# confuKnn$table
+```
+
+
+
+
+
 ### Algoritmo 4: Gradient Boosting
+
+
+```{r}
+GradientBoostingR$bestTune
+```
+
+
+Modelado con estos hiperparámetros
+
+```{r}
+# Malla para hiperparámetros
+gbmBestGrid <-  expand.grid(interaction.depth = 4, 
+                        n.trees = 250, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 7)
+
+
+set.seed(17)
+BestGradientBoostingR <- train(Marca~., 
+                data = DatosEntreamientoValidacion, 
+                method = "gbm", 
+                trControl=fitControl, 
+                tuneGrid = gbmBestGrid )
+
+#BestGradientBoostingR
+```
+
+#### Predicciones y evaluación del rendimiento
+
+```{r}
+PredValGB<-predict(BestGradientBoostingR, newdata = DatosTesteoValidacion)
+
+confuGB<-confusionMatrix(PredValGB, DatosTesteoValidacion$Marca)
+# table(Real=DatosTesteoValidacion$Marca,Pred=PredValGB)
+confuGB
+
+
+cat("Precisión:",100*confuGB$overall[1],"\n")
+cat("Kappa:",100*confuGB$overall[2],"\n")
+
+# cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
+# confuGB$table
+```
 
 
 
@@ -1079,73 +1178,67 @@ nrow(DatosTesteoValidacion)-nrow(DatosTesteoValidacion[DatosTesteoValidacion$Mar
 ### Comparación de las métricas según los diferentes modelos
 
 
+```{r}
+ggplotConfusionMatrix <- function(m){
+  mytitle <- paste("Accuracy",100*round( (m$overall[1]),3),
+                   "Kappa",   100*round( (m$overall[2]),3))
+  p <-
+    ggplot(data = as.data.frame(m$table) ,
+           aes(x = Reference, y = Prediction)) +
+    geom_tile(aes(fill = log(Freq)), colour = "white") +
+    scale_fill_gradient(low = "white", high = "steelblue") +
+    geom_text(aes(x = Reference, y = Prediction, label = Freq)) +
+    theme(legend.position = "none") +
+    ggtitle("Matriz de confusión",subtitle = mytitle)
+  return(p)
+}
+```
+
 
 
 ```{r}
-Modelos <- c("C5.0","Random Forest","KNN","Gradient Boosting (Automatic Grid)")
-Precision<-c(97.53,88.91,72.22,92.30)
-Kappa<-c("-",76.41,40.86,83.69)
-
-cbind.data.frame(Modelos,Precision,Kappa) %>% 
-  kable(booktabs=TRUE,caption = "Resultados de los modelos") %>% 
-  kable_styling(latex_options = "striped")
+cat("\n Matriz de confusión para el modelo C50: \n")
+ggplotConfusionMatrix(confuC50)
+cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
+ggplotConfusionMatrix(confuGB)
+cat("\n Matriz de confusión para el modelo KNN: \n")
+ggplotConfusionMatrix(confuKnn)
+cat("\n Matriz de confusión para el modelo Random Forest: \n")
+ggplotConfusionMatrix(confuRF)
 ```
 
 
 
 
-Por tanto, el modelo que nos da las mejore métricas es el modelo C5.0
+
+Conclusión: El mejor modelo para clasificar la marca preferida para nuestros clientes es un modelo Gradient Boosting. Es el que nos proporciona mejores métricas
 
 
 
 
-
-## Test del modelo final (C5.0)
+## Test del modelo final Gradient Boosting
 
 ### Evaluación del modelo final y testeo
 
+
 ```{r}
-#trials, model, winnow
-set.seed(17)
-modeloC5.0_Test <- C5.0(x = DatosTesteo[,-7] , 
-                  y= DatosTesteo[,7] ,
-                  
-                  trials = 5   # 9 sube mucho el error
-             #  ,  weights = c(38,62) # NO ESTOY SEGURA
-                 ) 
-summary(modeloC5.0_Test)
+PredTestGB<-predict(BestGradientBoostingR, newdata = DatosTesteo)
+confuGBTest<-confusionMatrix(PredTestGB, DatosTesteo$Marca)
+# table(Real=DatosTesteoValidacion$Marca,Pred=PredValGB)
+confuGBTest
+
+
+cat("Precisión:",100*confuGBTest$overall[1],"\n")
+cat("Kappa:",100*confuGBTest$overall[2],"\n")
+
+# cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
+# confuGB$table
 ```
 
 
 
 
 
-
-
-
-
-```{r}
-# Importancia de las variables en el modelo
-
-
-ImpC5.0Test<-cbind.data.frame(
-  c("salary","age","Nivel Educación","Marca Coche","Crédito","CodigoPostal"),
-  c( 100,84.92,24.41,7.84,6.18,0))
-colnames(ImpC5.0Test)=c("Variable","Importancia")
-
-ImpC5.0Test %>% 
-  kable(booktabs=TRUE) %>% 
-  kable_styling(latex_options = "striped")
-```
-
-Las variables más importantes son, con gran diferencia, salario y edad del cliente. Por el contrario, el Código postal parece no ser de gran importancia.
-
-
-```{r}
-ggplot(ImpC5.0Test, aes(x =sort( Variable)),) +
-  stat_summary(aes(y = Importancia),  geom = "col",color="red",fill="#CC6666")+
-  labs(title = "Importancia de las variables",subtitle = "Modelo C5.0",caption = "Fuente: elaboración propia")
-```
 
 
 
@@ -1157,25 +1250,22 @@ ggplot(ImpC5.0Test, aes(x =sort( Variable)),) +
 
 
 ```{r}
-# Matriz de confusión
-cat("Matriz de confusión \n")
-
-
-(MC_C5.0<-matrix(c(855  ,  81   ,  74 , 1464),byrow = TRUE,
-                nrow = 2,ncol = 2,
-                dimnames =  list(c("Acer","Sony"),c("Acer","Sony"))))
-```
-
-```{r}
-precisionTest <- (855+1464)/(855+1464+74+81)
-cat("La precisión del modelo C5.0 en los datos de testeo es del:", 100* precisionTest)
+confuGBTest
 ```
 
 
 ```{r}
-modeloC5.0_Test$boostResults
+cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
+ggplotConfusionMatrix(confuGBTest)
 ```
-Con estos hiperparámetros consigo un 6.3% de error (en los datos de entrenamiento era del 5%)
+
+Precisión: 
+
+```{r}
+round(confuGBTest$overall[1]*100,3)
+```
+
+Si llega un cliente nuevo, cabe esperar que acierte al clasificar su marca preferida de ordenador en un 92.74% de las veces.
 
 
 
