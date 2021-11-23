@@ -748,7 +748,8 @@ modeloC5.0 <- train(Marca~.,
                 method = "C5.0", 
                 trControl=fitControl, 
                 tuneLength = 5)
-summary(modeloC5.0)
+# summary(modeloC5.0)
+modeloC5.0
 ```
 
 
@@ -782,6 +783,8 @@ Hay varias variables importantes de cara a predecir la marca preferida.
 
 
 
+
+
 ### Algoritmo 2: Random Forest
 
 Algoritmo de clasificación
@@ -795,12 +798,13 @@ Algoritmo de clasificación
 #### Modelado
 
 ```{r}
+
 set.seed(17)
 RandomForestR <- train(Marca~., 
                 data = DatosEntreamientoValidacion, 
                 method = "rf", 
                 trControl=fitControl, 
-                tuneLength = 5)
+                tuneLength = 3)
 
 #training results
 RandomForestR
@@ -850,7 +854,7 @@ KNNmodel <- train(Marca~.,
                  data = DatosEntreamientoValidacion, 
                  method = "knn",
                  trControl=fitControl,
-                 tuneLength = 5)
+                 tuneLength = 3)
 KNNmodel 
 ```
 
@@ -1134,7 +1138,7 @@ GradientBoostingR$bestTune
 
 Modelado con estos hiperparámetros
 
-```{r}
+```{r }
 # Malla para hiperparámetros
 gbmBestGrid <-  expand.grid(interaction.depth = 4, 
                         n.trees = 250, 
@@ -1178,6 +1182,13 @@ cat("Kappa:",100*confuGB$overall[2],"\n")
 ### Comparación de las métricas según los diferentes modelos
 
 
+
+
+FALTA POST RESAMPLE aquí o solo en el mejor modelo?¿?¿?
+
+
+
+
 ```{r}
 ggplotConfusionMatrix <- function(m){
   mytitle <- paste("Accuracy",100*round( (m$overall[1]),3),
@@ -1193,6 +1204,9 @@ ggplotConfusionMatrix <- function(m){
   return(p)
 }
 ```
+
+
+
 
 
 
@@ -1268,6 +1282,13 @@ round(confuGBTest$overall[1]*100,3)
 Si llega un cliente nuevo, cabe esperar que acierte al clasificar su marca preferida de ordenador en un 92.74% de las veces.
 
 
+FALTA FEATURE IMPORTANCE
+FALTA POST RESAMPLE
+
+```{r}
+postResample(pred = PredTestGB, obs = DatosTesteo$Marca) # PREDS Y OBS REALES
+
+```
 
 
 # Predicciones de la marca prefererida
