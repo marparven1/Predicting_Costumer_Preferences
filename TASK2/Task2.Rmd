@@ -10,10 +10,6 @@ output:
     toc: yes
     toc_depth: 5
     number_sections: yes
-  pdf_document:
-    toc: yes
-    toc_depth: 5
-    number_sections: yes
 lang: es
 ---
 
@@ -63,11 +59,23 @@ Con esta información, se podrán tomar decisiones sobre que fabricantes se debe
 
 ## Qué encontraremos en este informe
 
+- Descripción de los datos y variables predictoras de la marca preferida
+- Limpieza de datos y preparación para el modelado
+- Análisis exploratorio, resumen de mis datos, representaciones gráficas,
+- Modelado, prueba de diferentes modelos con diferentes hiperparametrizaciones, entrenamiento de los modelos con validación y testeo de los modelos
+- Test final del mejor modelo y predicción de la marca preferida en el conjunto de datos incompleto
+- Conclusiones
+- Encuesta
+
+
+
+
 ## Procedimiento para cumplir mis objetivos
 
 -   Descripción de datos, pre-procesado, data cleaning y análisis exploratorio
--   Modelado a través de algoritmos de clasificacción (árboles de decisión), como por ejemplo C5.0 y RandomForest, entre otros (KNN, suppor vector machine, regresión logística (cuidado con la biclase))
+-   Modelado a través de algoritmos de clasificacción (árboles de decisión), como por ejemplo C5.0 y RandomForest, entre otros (KNN y gradient boosting)
 -   Decisión del método que mejor funciona para predecir la marca de ordenador preferida por los clientes
+- Una vez tengamos el modelo final, predecir la marca preferida por los clientes en el dataset incompletos, ya que ha habido un error en la recogida de esta variable
 
 
 # Descripción de los datos
@@ -75,7 +83,7 @@ Con esta información, se podrán tomar decisiones sobre que fabricantes se debe
 -   Conjuntos de datos:
 
     -   **CompleteResponses**: Conjunto de datos con 10000 encuestas completas que usaremos para entrenar el modelo y construir un modelo predictivo
-    -   **Survey Incomplete**: Dataset para testear el mejor modelo y tratar de predecir la marca preferida por los clientes
+    -   **Survey Incomplete**: Dataset para testear el mejor modelo y tratar de predecir la marca de ordenador preferida por los clientes
     -   **Survey key**: Encuesta (al final del documento)
 
 ```{r}
@@ -151,20 +159,13 @@ En los conjuntos de datos encontramos 7 variables :
 En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
 
 ```{r}
-str(DatosCompletos)
+# str(DatosCompletos)
+# str(DatosIncompletos)
+# summary(DatosCompletos)
+# summary(DatosIncompletos)
 ```
 
-```{r}
-str(DatosIncompletos)
-```
 
-```{r}
-summary(DatosCompletos)
-```
-
-```{r}
-summary(DatosIncompletos)
-```
 
 ## Duplicados
 
@@ -182,11 +183,11 @@ DatosCompletos[duplicated(DatosCompletos)==TRUE,]
 DatosCompletos[duplicated(DatosIncompletos)==TRUE,]
 ```
 
-Por tanto, nn nuestros conjuntos de datos, no existen instancias duplicadas.
+Por tanto, en nuestros conjuntos de datos, no existen instancias duplicadas.
 
 ## Missing values
 
-Ambos conjuntos de datos, estan completos.
+Ambos conjuntos de datos, están completos, por lo que no tendremos que imputar datos o eliminar registro, que provocaría sesgo.
 
 ```{r}
 # summary(DatosCompletos)
@@ -200,7 +201,7 @@ Ambos conjuntos de datos, estan completos.
 
 
 ```{r}
-#boxplot(DatosCompletos)$out 
+boxplot(DatosCompletos,main="BoxPlot de las variables \n Datos Completos")$out 
 #boxplot(DatosIncompletos)$out
 ```
 
@@ -214,6 +215,7 @@ Recodificamos las variables categóricas:
 -   Código Postal
 -   Car
 -   Nivel educativo
+
 
 ```{r}
 DatosCompletosCategoricos = DatosCompletos
@@ -269,9 +271,15 @@ DatosIncompletosCategoricos %>%
 
 ### Normalización de variables
 
+El salario y el crédito están ambas en la misma escala, y el resto de variables son categóricas, por lo que no es necesario escalar las variables.
+
 ## Creación de variables
 
-De momento no es necesario.
+No necesario
+
+
+
+
 
 
 # Análisis exploratorio
@@ -282,9 +290,18 @@ De momento no es necesario.
 
 Comenzaremos con un breve resumen estadístico de nuestros datos:
 
+Dataset de datos Completos
+
+
 ```{r}
 summary(DatosCompletosCategoricos)
+```
 
+
+
+Dataset de datos Incompletos
+
+```{r}
 summary(DatosIncompletosCategoricos)
 ```
 
@@ -371,7 +388,7 @@ DatosMarca %>%
 
 
 
-En esta tabla observamos que existen más clientes que prefieren la marca Sony.
+En esta tabla observamos que existen más clientes que prefieren la marca Sony, en concreto, el 62.17% de nuestros clientes ha considerado que su marca preferida es Sony.
 
 
 ## Representaciones gráficas
@@ -389,13 +406,22 @@ grafPrefe<-ggplot(DatosMarca,aes(x=Marca,y=n,color=Marca))+
 grafPrefe
 ```
 
+
 ### Variables numéricas
 
+Vamos a visualizar las diferentes variables en función de la marca preferida:
 
-#### Plot SmartEDA
 
 ```{r}
-plot4 <- ExpNumViz(DatosCompletosCategoricos,target="Marca",type=1,nlim=3,fname=NULL,col=c("darkgreen","springgreen3","springgreen1"),Page=c(2,2),sample=3)
+#### Plot SmartEDA
+plot4 <- ExpNumViz(DatosCompletosCategoricos,target="Marca",
+                   type=1,
+                   nlim=3,
+                   fname=NULL,
+                   col=c("darkgreen","springgreen3","springgreen1"),
+                   Page=c(1,3),
+                   sample=3,
+                   gtitle = "BoxPlot")
 plot4[[1]]
 ```
 
@@ -453,39 +479,53 @@ En ambos grupos el crédito medio es bastante similar.
 #### Marca de coche según marca preferida
 
 ```{r}
-DatosSonyCoches =DatosCompletosCategoricos %>% 
-  filter(Marca=="Sony") %>% 
-  group_by(MarcaCoche) %>% 
-  count()
-
-DatosAcerCoches =DatosCompletosCategoricos %>% 
-  filter(Marca=="Acer") %>% 
-  group_by(MarcaCoche) %>% 
-  count() 
-
-
-par(mfrow=c(1,2))
-
-ggplot(DatosSonyCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
-  geom_col(fill="lightgreen") +
-    labs(title="Marca de coches",
-         subtitle="Datos Sony",
-       y="Frecuencia",x="Marcas de coche",
-       caption="Fuente: Elaboración propia") +
-  scale_y_continuous(labels = scales::comma) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+DatosCompletosCategoricos %>%
+  ggplot(aes(x = MarcaCoche , fill=Marca )) +
+  geom_bar(position = "dodge") +
+    labs(title="Marca de coche según marca preferida \n Sony vs Acer",
+         subtitle="Gráfico de barras",
+         y="Frecuencia",x="Marcas de coche",
+         caption="Fuente: Elaboración propia") +
+scale_y_continuous(labels = scales::comma) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
 
 
+```{r}
+# DatosSonyCoches =DatosCompletosCategoricos %>% 
+#   filter(Marca=="Sony") %>% 
+#   group_by(MarcaCoche) %>% 
+#   count()
+# 
+# DatosAcerCoches =DatosCompletosCategoricos %>% 
+#   filter(Marca=="Acer") %>% 
+#   group_by(MarcaCoche) %>% 
+#   count() 
+# 
+# 
+# par(mfrow=c(1,2))
+# 
+# ggplot(DatosSonyCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
+#   geom_col(fill="FFDB6D") +
+#     labs(title="Marca de coches",
+#          subtitle="Datos Sony",
+#        y="Frecuencia",x="Marcas de coche",
+#        caption="Fuente: Elaboración propia") +
+#   scale_y_continuous(labels = scales::comma) +
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+# 
+# 
+# 
+# 
+# ggplot(DatosAcerCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
+#   geom_col(fill="#00AFBB") +
+#     labs(title="Marca de coches",
+#          subtitle="Datos Acer",
+#        y="Frecuencia",x="Marcas de coche",
+#        caption="Fuente: Elaboración propia") +
+#   scale_y_continuous(labels = scales::comma) +
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-
-ggplot(DatosAcerCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
-  geom_col(fill="lightgreen") +
-    labs(title="Marca de coches",
-         subtitle="Datos Acer",
-       y="Frecuencia",x="Marcas de coche",
-       caption="Fuente: Elaboración propia") +
-  scale_y_continuous(labels = scales::comma) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
 
@@ -558,9 +598,24 @@ ggplot(DatosAcerCoches,aes(x=reorder(MarcaCoche,n),y=n)) +
 # par(mfrow=c(1,1))
 ```
 
+
+
+
+
 ```{r}
-plot5 <- ExpCatViz(DatosCompletosCategoricos,target="Marca",fname=NULL,clim=5,col=c("slateblue4","slateblue1"),margin=2,Page = c(2,1),sample=1)
-plot5[[1]]
+DatosCompletosCategoricos %>%
+  ggplot(aes(x = NivelEduc , fill=Marca )) +
+  geom_bar(position = "dodge") +
+    labs(title="Nivel de educación según marca preferida \n Sony vs Acer",
+         subtitle="Gráfico de barras",
+         y="Frecuencia",x="Marcas de coche",
+         caption="Fuente: Elaboración propia") +
+scale_y_continuous(labels = scales::comma) +
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Con otra librería
+# plot5 <- ExpCatViz(DatosCompletosCategoricos,target="Marca",fname=NULL,clim=5,co# l=c("slateblue4","slateblue1"),margin=2,Page = c(2,1),sample=1)
+# plot5[[1]]
 ```
 
 
@@ -578,23 +633,33 @@ DatosCP = DatosCompletosCategoricos %>%
 
 ```{r}
 # Interleaved histograms
-ggplot(DatosCP, aes(y=n ,x=CodigoPostal,color=Marca, fill=Marca)) +
-    # geom_bar(position = "dodge")
-  geom_col(fill="white")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),legend.position="botton")+
-  scale_y_continuous(breaks = seq(0,1200,by=100)) +
-    labs(title="Código postal",
-         subtitle="Según marca preferida",
-       y="Número de clientes",x="Código Postal",
-       caption="Fuente: Elaboración propia")
+# ggplot(DatosCP, aes(y=n ,x=CodigoPostal,color=Marca, fill=Marca)) +
+#     # geom_bar(position = "dodge")
+#   geom_col(fill="white")+
+#   theme(axis.text.x = element_text(angle = 45, hjust = # 1),legend.position="botton")+
+#   scale_y_continuous(breaks = seq(0,1200,by=100)) +
+#     labs(title="Código postal",
+#          subtitle="Según marca preferida",
+#        y="Número de clientes",x="Código Postal",
+#        caption="Fuente: Elaboración propia")
 
 
+DatosCompletosCategoricos %>%
+  ggplot(aes(x = CodigoPostal , fill=Marca )) +
+  geom_bar(position = "dodge") +
+  # geom_col(fill="white")+
+    labs(title="Código Postal según marca preferida \n Sony vs Acer",
+         subtitle="Gráfico de barras",
+         y="Frecuencia",x="Marcas de coche",
+         caption="Fuente: Elaboración propia") +
+scale_y_continuous(labels = scales::comma) +
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
 
-## Correlación
+## Grado de asociación de las variables
 
-Como la variable objetivo es binaria, tenemos que estudiar la correlación de otra forma.
+
 
 ```{r}
 M = cor(DatosCompletos)
@@ -605,7 +670,13 @@ corrplot(M, method = "circle",title = "Matriz de correlación")
 # 'number', 'shade', 'color', 'pie',
 ```
 
+
+
+
 La variable más corrrealda con la variable objetivo, marca de ordenador preferida, es la variable salario (0.206)
+
+
+Como la variable objetivo es binaria y categórica, tenemos que estudiar la correlación de otra forma.
 
 ```{r}
 # Identificando variables predictoras muy correladas
@@ -618,7 +689,7 @@ findCorrelation(M, cutoff = .20)
 highlyCorDescr <- findCorrelation(M, cutoff = .20)
 filteredDescr <- DatosCompletos[,-highlyCorDescr]
 descrCor2 <- cor(filteredDescr)
-summary(descrCor2[upper.tri(descrCor2)])
+# summary(descrCor2[upper.tri(descrCor2)])
 ```
 
 
@@ -643,17 +714,22 @@ summary(descrCor2[upper.tri(descrCor2)])
 # ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "IV",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
 ```
 
-
+Asociación de las variables con la variable objetivo: Marca de ordenador preferida:
 
 ```{r}
 et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
-# et4
+et4
 ```
+La variable que más asociación guarda con la variable objetivo es el Salario. Para el resto de variables, la relación es muy poca.
+
+
 
 ```{r}
 # varimp <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=20,nlim=5,bins=6,Pclass="Yes",plot=TRUE,top=6,Round=2)
-
 ```
+
+
+
 
 
 
@@ -726,13 +802,18 @@ Nos dan proporciones similares, en torno a un 38/62, por lo que procedemos a la 
 
 Detección de los mejores algoritmos (decision tree classifiers methods):
 
-```{r}
+En primer lugar, para la replicación de los resultados, usamos la función trainControl.
+
+
+```{r echo=TRUE}
 # Para todos los modelos
 fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1,
                           # verboseIter =TRUE 
 )
 ```
 
+
+Vamos con los modelos para clasificar a la marca de ordenador preferida:
 
 
 ### Algoritmo 1: C5.0
@@ -756,9 +837,12 @@ modeloC5.0 <- train(Marca~.,
                 trControl=fitControl, 
                 tuneLength = 5)
 # summary(modeloC5.0)
-modeloC5.0
+
 ```
 
+
+
+Veamos la importancia de las variables en mi modelo:
 
 
 ```{r}
@@ -779,11 +863,7 @@ theme_minimal()
 
 Con estos hiperparámetros consigo un 6.4% de error.
 
-
-
-
-
-Hay varias variables importantes de cara a predecir la marca preferida.
+Hay varias variables bastante importantes de cara a predecir la marca preferida (edad, salario, si el cliente tiene un Toyota o si tiene un graduado universitario)
 
 
 
@@ -798,8 +878,10 @@ Algoritmo de clasificación
 
 #### Hiperparametros
 
-- Número de intentos (tune length): 5
+- Número de intentos (tune length): 3
 - Validación cruzaza con 10 grupos y una repetición
+- Diferentes tamaños de muestra para ver con cuál obtengo mejores métricas
+- mtry: 2, 18 y 34
 
 
 #### Modelado
@@ -829,7 +911,7 @@ labs(title = "Importancia de las variables",subtitle = "Modelo Random Forest",ca
 theme_minimal()
 ```
 
-Las variables más importantes son el salario, la edad y el crédito disponible.
+Las variables más importantes a la hora de clasificar a un nuevo individuo son el salario, la edad y el crédito disponible, es última con menor porcentaje.
 
 
 
@@ -839,18 +921,21 @@ Las variables más importantes son el salario, la edad y el crédito disponible.
 RandomForestR$results
 RandomForestR$bestTune
 ```
+
+
 - Precisión del 92.36%
 - Kappa: 83.90%
 
-Hiperparámetros del mejor modelo: mtry=10
+Hiperparámetros del mejor modelo: mtry=18
 
 ### Algoritmo 3: KNN
 
 #### Hiperparametros
 
 
-- Número de intentos (tune length): 5
+- Número de intentos (tune length): 3
 - Validación cruzaza con 10 grupos y una repetición
+- Prueba con k = 5,7,9 para obtener un k que optimice las métricas
 
 #### Modelado 
 
@@ -899,7 +984,7 @@ ggplot(KNNmodel)+
 
 Las mejores métricas se obtienen con los siguientes hiperparámetros:
 
-- k = 11
+- k = 9
 
 
 Métricas obtenidas:
@@ -926,14 +1011,13 @@ Nosotros crearemos una malla con los siguientes hiperparámetros, para ver cuál
 - Max Depth: 1,2,3,4,5
 - Número de árboles: 50 100 150 200 250
 - Learning rate: 0.1
-- tuneLength = 5
 - Número de muestras: 7
 
 
 
 #### Modelado 
 
-```{r}
+```{r message=FALSE}
 # Malla para hiperparámetros
 gbmGrid <-  expand.grid(interaction.depth = c(1,2,3,4,5,9), 
                         n.trees = seq(50,250,by=50), 
@@ -942,13 +1026,14 @@ gbmGrid <-  expand.grid(interaction.depth = c(1,2,3,4,5,9),
 
 
 set.seed(17)
+garbage <- capture.output(
 GradientBoostingR <- train(Marca~., 
                 data = DatosEntreamientoValidacion, 
                 method = "gbm", 
                 trControl=fitControl, 
               # tuneLength = 5, 
                 tuneGrid = gbmGrid)
-
+)
 GradientBoostingR
 ```
 
@@ -968,11 +1053,11 @@ theme_light()
 
 # ggplot(ImpGB)
 ```
-En este modelo, las variables más importantes, con grán diferencia son: el salario y la edad.
+En este modelo, las variables más importantes, con grán diferencia son: el salario (100) y la edad (71.35%).
 
 #### Gráfica del remuestreo
 
-Para examinar la relación entre la estiamción del rendimiento del modelo y los parámetros de ajuste.
+Para examinar la relación entre la estimación del rendimiento del modelo y los parámetros de ajuste.
 
 examinar la relación entre las estimaciones de rendimiento y los parámetros de ajuste
 
@@ -1016,7 +1101,7 @@ Métricas obtenidas:
 ## Validación
 
 
-
+Ahora clasificaremos la marca de ordenador preferida por los individuos con estos modelos sobre los datos de testeo validación, para ver con cuales obtengo mejores métricas, obteniendo así un modelo óptimo para realizar predicicones sobre mis datos incompletos.
 
 ### Algoritmo 1: C5.0
 
@@ -1041,7 +1126,7 @@ BestModelC50 <- train(Marca~.,
                 tuneGrid = C50_Grid)
 ```
 
-#### Predicciones y evaluación del rendimiento
+#### Predicciones y evaluación del rendimiento en datos de validación
 
 ```{r}
 PredValC50<-predict(BestModelC50, newdata = DatosTesteoValidacion)
@@ -1053,6 +1138,8 @@ confuC50
 
 cat("Precisión:",100*confuC50$overall[1],"\n")
 cat("Kappa:",100*confuC50$overall[2],"\n")
+
+
 
 # cat("\n Matriz de confusión para el modelo C50: \n")
 # confuC50$table
@@ -1108,6 +1195,7 @@ cat("Kappa:",100*confuRF$overall[2],"\n")
 
 
 
+
 ### Algoritmo 3: KNN
 
 
@@ -1142,6 +1230,7 @@ cat("Kappa:",100*confuKnn$overall[2],"\n")
 
 
 
+
 ### Algoritmo 4: Gradient Boosting
 
 
@@ -1161,12 +1250,14 @@ gbmBestGrid <-  expand.grid(interaction.depth = 4,
 
 
 set.seed(17)
+garbage <- capture.output(
+
 BestGradientBoostingR <- train(Marca~., 
                 data = DatosEntreamientoValidacion, 
                 method = "gbm", 
                 trControl=fitControl, 
                 tuneGrid = gbmBestGrid )
-
+)
 #BestGradientBoostingR
 ```
 
@@ -1200,11 +1291,23 @@ cat("Kappa:",100*confuGB$overall[2],"\n")
 ### Comparación de las métricas según los diferentes modelos
 
 
+#### Métricas
+
+Las métricas obtenidas son las siguientes:
+
+```{r}
+
+data.frame(
+  `Modelo`=c("C50","Random Forest","KNN","Gradient Boosting"),
+  `Precisión`=c(92.27,91.77,70.54,92.38),
+  `Kappa` = c(83.51, 82.39,36.75,83.77)
+) %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
 
 
-FALTA POST RESAMPLE aquí o solo en el mejor modelo?¿?¿?
-
-
+Por tanto, el modelo con el que obtenemos una mejor precisión a la hora de clasificar la marca de ordenador preferida por los clientes es: Gradient Boosting.
 
 
 ```{r}
@@ -1225,8 +1328,10 @@ ggplotConfusionMatrix <- function(m){
 
 
 
+#### Matrices de confusión
 
 
+Vamos a representar las cuatro matrices de confusión
 
 ```{r}
 cat("\n Matriz de confusión para el modelo C50: \n")
@@ -1239,11 +1344,19 @@ cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
 ggplotConfusionMatrix(confuGB)
 ```
 
+Únicamente 110 clientes que prefieren Acer han sido clasificados como que su marca preferida es Sony y sólo 161 que en realidad prefieren Sony han sido clasificados como que su marca de ordenador preferida es Acer.
+
+Las métricas de este modelo son muy buenas.
+
+
 
 ```{r}
 cat("\n Matriz de confusión para el modelo KNN: \n")
 ggplotConfusionMatrix(confuKnn)
 ```
+
+Con gan diferencia, el modelo KNN es el que peor clasifica la marca preferida por los clientes, tenemos casi el mismo número de aciertos al a hora de clasificar la marca acer (790) que de fallos (529)
+
 
 
 ```{r}
@@ -1282,6 +1395,14 @@ cat("Kappa:",100*confuGBTest$overall[2],"\n")
 # confuGB$table
 ```
 
+Conclusiones:
+
+ - Accuracy : 0.9272 . Si llega un nuevo cliente, cabe esperar que el modelo acierte a la hora de clasificar su marca de ordenador preferida en un 92.72%   
+ - Sensitivity : 0.9225 . De nuevo, ante la llegada de un nuevo cliente que prefiere la marca Acer ,cabe esperar que el modelo acierte a la hora de clasificar su marca de ordenador preferida en un 92.25%         
+ - Specificity : 0.9301 .  Ante la llegada de un nuevo cliente que prefiere la marca Sony ,cabe esperar que el modelo acierte a la hora de clasificar su marca de ordenador preferida en un 93.01%  
+ 
+El modelo clasifica ligeramente mejor a los clientes que prefieren Sony, pero clasifica bien a ambos. La métrica es muy buena.
+
 
 
 
@@ -1299,7 +1420,7 @@ labs(title = "Importancia de las variables",subtitle = "Modelo Gradient Boosting
 theme_minimal()
 ```
 
-Las variables mas importantes de cara a clasificar la preferencia de marca de ordenador de los clientes son: salario (100%), edad  (80.7) y crédito(3.08%)
+Las variables mas importantes y por tanto, determinantes de cara a clasificar la preferencia de marca de ordenador de los clientes son: salario (100%), edad  (80.7) y crédito(3.08%)
 
 
 
@@ -1320,6 +1441,9 @@ cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
 ggplotConfusionMatrix(confuGBTest)
 ```
 
+Únicamente hemos clasificado mal a Acer en 58 casos y a Sony en 86, las métricas son muy buenas.
+
+
 Precisión: 
 
 ```{r}
@@ -1329,8 +1453,6 @@ round(confuGBTest$overall[1]*100,3)
 Si llega un cliente nuevo, cabe esperar que acierte al clasificar su marca preferida de ordenador en un 92.74% de las veces.
 
 
-FALTA FEATURE IMPORTANCE
-FALTA POST RESAMPLE
 
 ```{r echo=TRUE}
 postResample(pred = PredTestGB, obs = DatosTesteo$Marca) # PREDS Y OBS REALES
@@ -1350,7 +1472,7 @@ DatosTesteo[DatosTesteo$Marca!=PredTestGB,]
 comparo <- cbind.data.frame(DatosTesteo$Marca,PredTestGB)
 
 
-plot(comparo)
+plot(comparo, main="Valores Reales vs Predicción \n Datos Test")
 
 # Plot con ggplot2 
 # grafComparacion<-ggplot(comparo,aes(x=Marca,y=n,color=Marca))+
@@ -1361,6 +1483,11 @@ plot(comparo)
 # grafPrefe
 
 ```
+
+Gráfico donde podemos ver que las barras más pequeñas son los errores, me equicoco muy poco.
+Me equivoco en menos de un 10% para ambas categorías.
+
+
 ¿Cómo son los inidviduos bien clasificados?¿Y los mal clasificados?
 
 
@@ -1372,18 +1499,6 @@ BienClasificados %>% summary()
 ```{r}
 MalClasificados %>% summary()
 ```
-
-
-Conclusiones y diferencias de lso bien y mal clasificados (variables más importantes):
-
-
-- *Salario*:Menor salario máximo para los mal clasificados. El salario medio de los bien clasificados es 87074 euros muentras que el de los mal clasificados es 75374, que es un `r (round((87074-75374)/75374),2)*100`% menos.
-
-- *Edad*: Edad media de los clientes bien clasificados es de casi 50 años, prácticamente igual que la de los clientes en los que hemos cometido error.
-
-- *El crédito* medio de los clientes bien clasificados (252107 euros) es menor que el de los mal clasificados (257756 euros)
-
-
 
 
 
@@ -1403,9 +1518,7 @@ DatosIncompletosCategoricos$MarcaPreferidaPred=PrediccionesIncompletas
 ```
 
 
-```{r}
-DatosIncompletosCategoricos %>% head(25)
-```
+
 
 ```{r}
 SonyPrediccion <- DatosIncompletosCategoricos[DatosIncompletosCategoricos$MarcaPreferidaPred=="Sony",]
@@ -1422,6 +1535,176 @@ AcerPrediccion %>% summary()
 ```
 
 
+RESULTADOS COMENTADOS AL FINAL. EN EL APARTADO DE CONCLUSIONES
+
+# Conclusiones y recomendaciones
+
+En este apartado exponemos aquellos aspectos interesantes para el negocio que son destacables y que permitan a la dirección establecer estrategias y tomar decisiones.
+
+## Métodos utilizados para modelar (resultados/métricas obtenidas)
+
+Modelos: 
+
+- C50
+- Random Forest
+- KNN
+- Gradient Boosting
+
+Las métricas obtenidas son las siguientes:
+
+```{r}
+
+data.frame(
+  `Modelo`=c("C50","Random Forest","KNN","Gradient Boosting"),
+  `Precisión`=c(92.27,91.77,70.54,92.38),
+  `Kappa` = c(83.51, 82.39,36.75,83.77)
+) %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+
+Modelo elegido: 
+
+Gradient Boosting. Lo hemos elegido porque nos daba la mejor precisión a la hora de clasificar a los clientes. Su matriz de confusión en los datos de testeo era la siguiente:
+
+```{r}
+cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
+ggplotConfusionMatrix(confuGBTest)
+```
+
+Únicamente hemos clasificado mal a Acer en 58 casos y a Sony en 86, las métricas son muy buenas.
+
+Las variables más importantes a la hora de predecir la marca preferida de los clientes son las siguientes:
+
+```{r}
+ImpFinalGB
+```
+
+
+Estudiaremos el salario y la edad, que son las más importantes.
+
+
+Ahora bien, nos preguntamos, ¿cómo son las características de los clientes que han sido clasificados de forma correcta y los que no? ( respecto a las variables más importantes):
+
+
+- *Salario*:Menor salario máximo para los mal clasificados. El salario medio de los bien clasificados es 87074 euros mientras que el de los mal clasificados es 75374.
+
+- *Edad*: Edad media de los clientes bien clasificados es de casi 50 años, prácticamente igual que la de los clientes en los que hemos cometido error.
+
+- *El crédito* medio de los clientes bien clasificados (252107 euros) es menor que el de los mal clasificados (257756 euros)
+
+
+- Gráficos del salario
+
+```{r}
+ggplot(data = MalClasificados,
+       mapping = aes(x = salary,
+                     fill = Marca)) +
+  geom_histogram(bins = 12,
+                 position = 'identity',
+                 alpha = 0.5) +
+  scale_x_continuous(breaks = seq(20000,130000,by=10000))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title = 'Salario según Marca Preferida',
+       fill = 'Marca',
+       x = 'Salario',
+       y = 'n',
+       subtitle = 'Clientes mal clasificados',
+       caption = 'Fuente: Elaboración propia')
+```
+
+
+Son los clientes mal clasificados, vemos como hay  muchos clientes clasificados como Sony siendo Acer que tienen salarios entre 55000 y 100000 dólares. En el extremo superior, se han clasificado mal muchos clientes con salario de más de 125000 dólares, todos han sido clasificado como Acer cuando preferían Sony.
+
+
+```{r}
+ggplot(data = BienClasificados,
+       mapping = aes(x = salary,
+                     fill = Marca)) +
+  geom_histogram(bins = 12,
+                 position = 'identity',
+                 alpha = 0.5) +
+  scale_x_continuous(breaks = seq(20000,155000,by=10000))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title = 'Salario según Marca Preferida',
+       fill = 'Marca',
+       x = 'Salario',
+       y = 'n',
+       subtitle = 'Clientes bien clasificados',
+       caption = 'Fuente: Elaboración propia')
+```
+
+
+
+Vemos como las gráficas son bastante diferentes, aquí vemos que hay muchos más clientes que prefieren Sony que tienen un salarios más altos que los de Acer. Para salarios entre 55000 y 100000 dólares, la mayoría de clientes prefieren ordenadores de la marca Acer.
+
+
+
+- Para la edad: 
+
+
+```{r}
+ggplot(data = MalClasificados,
+       mapping = aes(x = age,
+                     fill = Marca)) +
+  geom_histogram(bins = 20,
+                 position = 'identity',
+                 alpha = 0.5) +
+  scale_x_continuous(breaks = seq(18,81,by=2))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title = 'Edad según Marca Preferida',
+       fill = 'Marca',
+       x = 'Salario',
+       y = 'n',
+       subtitle = 'Clientes mal clasificados',
+       caption = 'Fuente: Elaboración propia')
+```
+
+
+En la franja de edad de 23 a 33 años, nos hemos equivocado al clasificar la marca de ordenador preferida, la mayoría de errores está en que hemos clasificado como Acer en vez de Sony.
+
+Para una edad desde 55 en adelante, la mayorría de errores vienen de haber clasificado la marca preferida como Sony, en vez de Acer.
+
+
+```{r}
+ggplot(data = BienClasificados,
+       mapping = aes(x = age,
+                     fill = Marca)) +
+  geom_histogram(bins = 12,
+                 position = 'identity',
+                 alpha = 0.5) +
+  scale_x_continuous(breaks = seq(18,81,by=2))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title = 'Edad según Marca Preferida',
+       fill = 'Marca',
+       x = 'Salario',
+       y = 'n',
+       subtitle = 'Clientes bien clasificados',
+       caption = 'Fuente: Elaboración propia')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## RESULTADOS DE LA CLASIFICACIÓN EN DATOS INCOMPLETOS
+
+
 
 Hemos obtenido la siguiente clasificación:
 
@@ -1429,30 +1712,57 @@ Hemos obtenido la siguiente clasificación:
 - 1916 clientes cuya marca preferida ha sido clasificada como Acer
 
 
+```{r}
+DatosMarcaINC = DatosIncompletosCategoricos %>% 
+  group_by(MarcaPreferidaPred) %>% 
+  count()
+
+
+grafPrefe2<-ggplot(DatosMarcaINC,aes(x=MarcaPreferidaPred,
+                                                  y=n,color=MarcaPreferidaPred))+
+  geom_col(fill="white")+
+  labs(title="Marca preferida por los clientes",
+       y="Número de clientes",x="Marca preferida",
+       caption="Fuente: Elaboración propia")
+grafPrefe2
+```
 
 
 
+```{r}
+ggplot(data =  DatosIncompletosCategoricos,
+       mapping = aes(x = age,
+                     fill = MarcaPreferidaPred)) +
+  geom_histogram(bins = 20,
+                 position = 'identity',
+                 alpha = 0.5) +
+  scale_x_continuous(breaks = seq(18,81,by=2))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title = 'Clasificación según Edad ',
+       fill = 'Marca',
+       x = 'Edad',
+       y = 'n',
+       subtitle = 'Datos Incompletos',
+       caption = 'Fuente: Elaboración propia')
+```
 
 
-
-
-
-
-
-
-
-
-# Conclusiones y recomendaciones
-
-En este apartado exponemos aquellos aspectos interesantes para el negocio que son destacables y que permitan a la dirección establecer estrategias y tomar decisiones.
-
--   Métodos utilizados para modelar (resultados/métricas obtenidas)
--   Modelo elegido, porqué es el mejor, nivel de confianza de las predicciones
--   Las respuestas previstas a la pregunta de preferencia de marca para las instancias incompletas
--   Gráfico de las preferencias del clientes (comparación de predicción y valor real)
-
-
-
+```{r}
+ggplot(data =  DatosIncompletosCategoricos,
+       mapping = aes(x = salary,
+                     fill = MarcaPreferidaPred)) +
+  geom_histogram(bins = 20,
+                 position = 'identity',
+                 alpha = 0.5) +
+  scale_x_continuous(breaks = seq(20000,155000,by=10000))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title = 'Clasificación según Salario',
+       fill = 'Marca',
+       x = 'Salario',
+       y = 'n',
+       subtitle = 'Datos Incompletos',
+       caption = 'Fuente: Elaboración propia')
+```
 
 
 
@@ -1522,5 +1832,14 @@ Seleccione una entre las siguientes:
 |-------|--------|
 | 0     | Acer   |
 | 1     | Sony   |
+
+
+
+
+
+
+
+
+
 
 
