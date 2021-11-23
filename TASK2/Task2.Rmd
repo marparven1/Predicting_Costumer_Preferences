@@ -69,6 +69,7 @@ Con esta información, se podrán tomar decisiones sobre que fabricantes se debe
 -   Modelado a través de algoritmos de clasificacción (árboles de decisión), como por ejemplo C5.0 y RandomForest, entre otros (KNN, suppor vector machine, regresión logística (cuidado con la biclase))
 -   Decisión del método que mejor funciona para predecir la marca de ordenador preferida por los clientes
 
+
 # Descripción de los datos
 
 -   Conjuntos de datos:
@@ -143,6 +144,7 @@ En los conjuntos de datos encontramos 7 variables :
 # dim(DatosCompletos)
 # dim(DatosInompletos)
 ```
+
 
 # Preparación de los datos (Limpieza de datos)
 
@@ -245,7 +247,7 @@ DatosIncompletosCategoricos = DatosIncompletosCategoricos%>%
     Marca = factor(DatosIncompletosCategoricos$brand, 
                    levels = c(0,1), 
                    labels = c("Acer", "Sony")),
-    CódigoPostal = factor(DatosIncompletosCategoricos$zipcode,
+    CodigoPostal = factor(DatosIncompletosCategoricos$zipcode,
                           levels = c(0,1,2,3,4,5,6,7,8), 
                           labels =   c("New England","Mid-Atlantic","East North Central","West North Central","South Atlantic","East South Central","West South Central","Mountain","Pacific")),
     NivelEduc = factor(DatosIncompletosCategoricos$elevel, 
@@ -270,6 +272,7 @@ DatosIncompletosCategoricos %>%
 ## Creación de variables
 
 De momento no es necesario.
+
 
 # Análisis exploratorio
 
@@ -659,6 +662,9 @@ et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=
 
 
 
+
+
+
 # Modelado y predicción de la marca preferida
 
 ```{r - semilla}
@@ -714,6 +720,7 @@ round(prop.table(table(DatosTesteo$Marca)),3) %>%
 ```
 
 Nos dan proporciones similares, en torno a un 38/62, por lo que procedemos a la construcción de los modelos
+
 
 ## Prueba de algoritmos, hiperparámetros y estrategias de optimización para predecir la marca preferida
 
@@ -999,6 +1006,13 @@ Métricas obtenidas:
 
 
 
+
+
+
+
+
+
+
 ## Validación
 
 
@@ -1156,6 +1170,10 @@ BestGradientBoostingR <- train(Marca~.,
 #BestGradientBoostingR
 ```
 
+
+
+
+
 #### Predicciones y evaluación del rendimiento
 
 ```{r}
@@ -1213,10 +1231,22 @@ ggplotConfusionMatrix <- function(m){
 ```{r}
 cat("\n Matriz de confusión para el modelo C50: \n")
 ggplotConfusionMatrix(confuC50)
+```
+
+
+```{r}
 cat("\n Matriz de confusión para el modelo Gradient Boosting: \n")
 ggplotConfusionMatrix(confuGB)
+```
+
+
+```{r}
 cat("\n Matriz de confusión para el modelo KNN: \n")
 ggplotConfusionMatrix(confuKnn)
+```
+
+
+```{r}
 cat("\n Matriz de confusión para el modelo Random Forest: \n")
 ggplotConfusionMatrix(confuRF)
 ```
@@ -1226,6 +1256,9 @@ ggplotConfusionMatrix(confuRF)
 
 
 Conclusión: El mejor modelo para clasificar la marca preferida para nuestros clientes es un modelo Gradient Boosting. Es el que nos proporciona mejores métricas
+
+
+
 
 
 
@@ -1252,7 +1285,21 @@ cat("Kappa:",100*confuGBTest$overall[2],"\n")
 
 
 
+```{r}
+ImpFinalGB<-varImp(BestGradientBoostingR )
+ImpFinalGB
 
+
+ggplot(ImpFinalGB ) +
+geom_point( color="white", size=4, alpha=0.5)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo Gradient Boosting",caption = "Fuente: elaboración propia")+
+theme_minimal()
+```
+
+Las variables mas importantes de cara a clasificar la preferencia de marca de ordenador de los clientes son: salario (100%), edad  (80.7) y crédito(3.08%)
 
 
 
@@ -1285,13 +1332,115 @@ Si llega un cliente nuevo, cabe esperar que acierte al clasificar su marca prefe
 FALTA FEATURE IMPORTANCE
 FALTA POST RESAMPLE
 
-```{r}
+```{r echo=TRUE}
 postResample(pred = PredTestGB, obs = DatosTesteo$Marca) # PREDS Y OBS REALES
+```
+
+
+
+```{r}
+BienClasificados <- 
+DatosTesteo[DatosTesteo$Marca==PredTestGB,]
+
+MalClasificados <- 
+DatosTesteo[DatosTesteo$Marca!=PredTestGB,]
+
+
+
+comparo <- cbind.data.frame(DatosTesteo$Marca,PredTestGB)
+
+
+plot(comparo)
+
+# Plot con ggplot2 
+# grafComparacion<-ggplot(comparo,aes(x=Marca,y=n,color=Marca))+
+#   geom_col(fill="white")+
+#   labs(title="Marca preferida por los clientes",
+#        y="Número de clientes",x="Marca preferida",
+#        caption="Fuente: Elaboración propia")
+# grafPrefe
+
+```
+¿Cómo son los inidviduos bien clasificados?¿Y los mal clasificados?
+
+
+```{r}
+BienClasificados %>% summary()
+```
+
+
+```{r}
+MalClasificados %>% summary()
+```
+
+
+Conclusiones y diferencias de lso bien y mal clasificados (variables más importantes):
+
+
+- *Salario*:Menor salario máximo para los mal clasificados. El salario medio de los bien clasificados es 87074 euros muentras que el de los mal clasificados es 75374, que es un `r (round((87074-75374)/75374),2)*100`% menos.
+
+- *Edad*: Edad media de los clientes bien clasificados es de casi 50 años, prácticamente igual que la de los clientes en los que hemos cometido error.
+
+- *El crédito* medio de los clientes bien clasificados (252107 euros) es menor que el de los mal clasificados (257756 euros)
+
+
+
+
+
+## Predicciones de la marca prefererida en el dataset incompletos
+
+Predicciones con el mejor modelo para los datos incompletos.
+
+
+```{r}
+PrediccionesIncompletas <- 
+  predict(BestGradientBoostingR, newdata =DatosIncompletosCategoricos )
+
+PrediccionesIncompletas %>% head()
+
+DatosIncompletosCategoricos$MarcaPreferidaPred=PrediccionesIncompletas 
 
 ```
 
 
-# Predicciones de la marca prefererida
+```{r}
+DatosIncompletosCategoricos %>% head(25)
+```
+
+```{r}
+SonyPrediccion <- DatosIncompletosCategoricos[DatosIncompletosCategoricos$MarcaPreferidaPred=="Sony",]
+SonyPrediccion %>% summary()
+
+# nrow(SonyPrediccion)
+```
+
+
+```{r}
+AcerPrediccion <- DatosIncompletosCategoricos[DatosIncompletosCategoricos$MarcaPreferidaPred=="Acer",]
+AcerPrediccion %>% summary()
+# nrow(AcerPrediccion)
+```
+
+
+
+Hemos obtenido la siguiente clasificación:
+
+- 3084 clientes cuya marca preferida ha sido clasificada como Sony
+- 1916 clientes cuya marca preferida ha sido clasificada como Acer
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Conclusiones y recomendaciones
 
@@ -1301,6 +1450,12 @@ En este apartado exponemos aquellos aspectos interesantes para el negocio que so
 -   Modelo elegido, porqué es el mejor, nivel de confianza de las predicciones
 -   Las respuestas previstas a la pregunta de preferencia de marca para las instancias incompletas
 -   Gráfico de las preferencias del clientes (comparación de predicción y valor real)
+
+
+
+
+
+
 
 # Encuesta (Survey Questions and Response Key)
 
@@ -1367,3 +1522,5 @@ Seleccione una entre las siguientes:
 |-------|--------|
 | 0     | Acer   |
 | 1     | Sony   |
+
+
