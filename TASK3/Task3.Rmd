@@ -1,0 +1,425 @@
+---
+title: "Proyecto Blackwell Electronics. Data Science Process"
+subtitle: "Módulo 3 Tarea 3: Regresión múltiple. Análisis de predicción de ventas"
+author: "Marta Venegas Pardo"
+date: "30/Noviembre/2021"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    toc: yes
+    toc_depth: 5
+    number_sections: yes
+lang: es
+---
+
+```{r setup, include=FALSE,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(message=FALSE,warning=FALSE , echo = FALSE
+  )
+```
+
+```{r librerías}
+dire<-getwd() 
+setwd(dire) 
+
+# Librerías necesarias
+library(dplyr)
+library(kableExtra)
+library(knitr)
+
+# Gráficos
+library(ggplot2)
+library(scales)
+## Matriz de correlación 
+library(corrplot)
+# Análisis exploratioro
+library(SmartEDA)
+
+# Modelado
+library(caret)
+```
+
+# Introducción (definición del problema + objetivos)
+
+## Objetivos
+
+El equipo de ventas de Blackwell Electronics solicita que analicemos los datos correspondientes a las ventas de distintos productos con el **objetivo** de:
+
+- Entender como las ventas varían en función del tipo de producto
+- Predecir las ventas de cuatro tipos de productos diferentes: PC, portátiles, netbooks y teléfonos inteligentes
+- Evaluar el impacto que tienen las revisiones de los servicios y las reseñas de los clientes en las ventas de diferentes tipos de productos
+
+
+Para ello, analizaremos los datos correspondientes al histórico de ventas para hacer predicciones del volumen de ventas de los nuevos productos. 
+
+
+
+
+## Qué encontraremos en este informe
+
+- Descripción de los datos y variables predictoras de las ventas de cada producto
+- Limpieza de datos y preparación para el modelado
+- Análisis exploratorio, resumen de mis datos, representaciones gráficas,
+- Modelado, prueba de diferentes modelos con diferentes hiperparametrizaciones, entrenamiento de los modelos con validación y testeo de los modelos
+- Test final del mejor modelo y predicción del volumen de ventas de los nuevos productos en el conjunto de datos "new product" 
+- Conclusiones
+
+
+
+## Procedimiento para cumplir mis objetivos
+
+-   Descripción de datos, pre-procesado, data cleaning y análisis exploratorio
+-   Modelado a través de algoritmos de regresión , como por ejemplo:
+-   Decisión del método que mejor funciona 
+- Una vez tengamos el modelo final, predecir las ventas de los cuatro tipos de productos informáticos
+
+
+# Descripción de los conjuntos de datos
+
+-   Conjuntos de datos:
+
+    -   **DatosProdExistentes**: Histórico de ventas con los 80 productos existentes, sus características y valoraciones
+    -   **DatosProdNuevos**: Dataset con 24 nuevos productos, sus características y valoraciones
+
+```{r}
+DatosProdExistentes<-read.csv(file="DATOS/existingproductattributes2017.csv",header = TRUE,sep = ",",dec ="." )
+
+DatosProdNuevos<-read.csv(file="DATOS/newproductattributes2017.csv",header = TRUE,sep = ",",dec =".")
+```
+
+Vamos a visualizar los datos:
+
+```{r}
+DatosProdExistentes %>% 
+  head(10) %>% 
+  kable(booktabs=TRUE,caption = "Histórico de ventas. Datos: Productos existentes") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+DatosProdNuevos %>% 
+  head(10) %>% 
+  kable(booktabs=TRUE,caption = "Datos: Productos nuevos") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+```{r}
+str(DatosProdNuevos)
+```
+
+```{r}
+str(DatosProdExistentes)
+```
+
+```{r}
+DatosProdNuevos$ProductType %>% levels()
+```
+
+
+## Descripción de variables
+
+-   Datos de entrenamiento y validación: 80 productos diferentes
+-   Datos de testeo: 24 productos diferentes
+
+En ambos conjuntos de datos encontramos 18 variables :
+
+-   **Product type**: Tipo de producto. Encontramos 12 tipos diferentes (Accesorios, monitor ordenador portatil, Netbook, impresora, extensión de la garantía, Consola, accesorios de impresora, teléfonos inteligentes, tabletas, software). (Variable categórica)
+
+-   **ProductNum**: Identificador del producto, es único para cada producto (Variable numérica)
+
+-   **XiStarReviews**: cinco variables correspondientes a las puntuaciones (i=1-5) al producto  (Variable numérica, que indica el número de veces que se le ha dado esa puntiación)
+
+-   **PositiveServiceReview**: Número de veces que se ha dado una reseña positiva por el servicio. (numérica)
+-   **NegativeServiceReview**: Número de veces que se ha dado una reseña negativa por el servicio. (numérica)
+-   **RecommendProduct**: Puntuación entre 0 y 1 en función si recomendaría o no el producto (variable numérica)
+-   **Best Seller Rank**: Puesto que ocupa en un ránking de productos  (variable numérica entera)
+-   **Shipping Weigth**: Peso del envío (variable numérica)
+-   **Product Depth**: Dimensiones de la profundidad del producto (variable numérica)
+-   **Product Width**: Dimensiones del ancho del producto (variable numérica)
+-   **Product Heigth**: Dimensiones del alto del producto (variable numérica)
+-   **ProfitMargin**: Margen de beneficio que proporciona el producto (numérica)
+-   **Target. Volume**: Volumen de ventas de dicho producto. (Variable numérica entera)
+
+
+
+```{r}
+#dim(DatosProdExistentes)
+#dim(DatosProdNuevos)
+```
+
+
+# Preparación de los datos (Limpieza de datos)
+
+En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos ( incompletos) en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
+
+```{r}
+str(DatosProdExistentes)
+str(DatosProdNuevos)
+summary(DatosProdExistentes)
+summary(DatosProdNuevos)
+```
+
+
+## Datos ficticios (dummy)
+
+```{r}
+# dummy of the data
+newDataFrame <- dummyVars(" ~ .", data = DatosProdExistentes)
+readyData <- data.frame(predict(newDataFrame, newdata = DatosProdExistentes))
+
+#boxplot(readyData[,-c(1,2,3,4,5,6,7,8,9,10,11,12)])
+
+```
+
+
+
+## Duplicados
+
+Mostramos a continuación, las instancias duplicadas en nuestros datasets:
+
+-   Duplicados en los datos de entrenamiento:
+
+```{r}
+DatosProdExistentes[duplicated(DatosProdExistentes)==TRUE,]
+```
+
+-   Duplicados en los datos de testeo:
+
+```{r}
+DatosProdNuevos[duplicated(DatosProdNuevos)==TRUE,]
+```
+
+Por tanto, en nuestros conjuntos de datos, no existen instancias duplicadas.
+
+## Datos faltantes
+
+El conjunto de datos correspondientes al histórico de ventas tiene 15 productos en los que la columna BestSellerRank tiene un valor NA. Es decir, no conocemos la posición en el ranking de mejores vendidos de esos productos
+
+```{r}
+summary(DatosProdExistentes$BestSellersRank)
+# summary(DatosProdNuevos$BestSellersRank)
+```
+
+```{r}
+DatosProdExistentes %>% 
+  filter(
+    is.na(BestSellersRank )
+  ) %>% kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+Las opciones son las siguientes: imputar el valor que ocuparía en el ranking, eliminar esos registros (no debemos), eliminar esa columna del estudio. 
+
+Opción elegida: eliminemos cualquier atributo que tenga datos faltante.
+
+```{r}
+DatosProdExistentes$attributeWithMissingData <- NULL
+```
+
+
+
+
+## Outliers
+
+-   En el dataset de entrenamiento *Datos de Productos existentes*, encontramos valores atípicos en bastantes variables (no estudio outliers de la variable ID, porque no tiene sentido)
+
+
+```{r}
+boxplot(DatosProdExistentes[,3:8],main="BoxPlot. Precio y calificación de los productos \n Datos del histórico de ventas")
+# $out
+
+boxplot(DatosProdExistentes[,9:10],main="BoxPlot. Reseña de los productos \n Datos Completos")
+
+boxplot(DatosProdExistentes[,11],main="BoxPlot. Recommend product \n Datos Completos")
+
+boxplot(DatosProdExistentes[,13:16],main="BoxPlot. Dimensiones del prducto \n Datos Completos")
+
+boxplot(DatosProdExistentes[,18],main="BoxPlot. Volumen de ventas \n Datos Completos",
+        xlab="Volumen de ventas")
+```
+
+## Transformación de variables
+
+### Factorización de las variables
+
+No es necesario
+
+### Normalización de variables
+
+No necesitamos normalizar las variables para que estén todas en la misma escala, ya la mayoría de variables son ordinales, y las que no lo son (peso, altura del producto,...) se encuentran todas en la misma escala.
+
+```{r}
+#scale(x,center = TRUE,scale = TRUE)
+```
+
+
+## Creación de variables
+
+No necesario por el momento.
+
+
+
+
+
+
+
+
+# Análisis exploratorio
+
+```{r}
+# Nota para mí: Describiré el DSP, recordando las preguntas de Danielle Sherman
+```
+
+Comenzaremos con un breve resumen estadístico de nuestros datos:
+
+Dataset: Histórico de ventas
+
+
+```{r}
+summary(DatosProdExistentes)
+```
+
+
+```{r}
+summary(DatosProdNuevos)
+```
+
+
+
+-   **Tipo de producto**: La mayoría de productos que existentes en blackwell eran accesorios, seguido de impresoras y extensiones de la garantía. Para los nuevos productos, la mayoría son smartphones o netbooks
+
+
+-   **Precio**: El precio medio de los productos existentes en blackwell es de 247.25 euros (rango de 2249.99/3.60), mientras que el precio medio de los productos nuevos es bastante superior: 425.6 euros (rango:8.5/1999)
+
+
+
+
+## Resumen según tipo de producto
+
+```{r}
+#DatosCompletosCategoricos %>% 
+#  group_by(Marca) %>% 
+#  summarise(
+#  SalarioMedio = mean(salary)  ,
+#  EdadMedia = age %>% mean() ,
+#  CreditoMedio = credit %>% mean() ,
+#) %>% kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida \n #Variables Numéricas")
+```
+
+
+```{r}
+#DatosMarca = DatosCompletosCategoricos %>% 
+#  group_by(Marca) %>% 
+#  count()
+```
+
+
+
+```{r}
+#DatosMarca %>% 
+#  mutate(
+#    TOTAL = 3744+6154 ,
+#    Frecuencia =round( 100*(n / TOTAL) , 2 )) %>% 
+#  select(n,Frecuencia) %>% 
+#  kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida",col.names #= c("Marca","Número de clientes","Frecuencia"),align = "l")
+```
+
+
+
+
+
+
+## Representaciones gráficas
+
+
+
+
+
+## Grado de asociación de las variables
+
+
+
+```{r}
+M = cor(DatosProdExistentes[,-c(1,2,12)])
+corrplot(M, method = "circle",title = "Matriz de correlación")
+
+M =cor(readyData)
+corrplot(M, method = "circle",title = "Matriz de correlación")
+
+# Visualice otros metodos gráficos como, 'circle', 'square', 'ellipse',
+# 'number', 'shade', 'color', 'pie',
+```
+
+
+
+
+
+
+
+Como la variable objetivo es binaria y categórica, tenemos que estudiar la correlación de otra forma.
+
+```{r}
+# Identificando variables predictoras muy correladas
+highCorr <- sum(abs(M[upper.tri(M)]) > .999)
+highCorr # No hay
+
+
+findCorrelation(M, cutoff = .20)
+
+highlyCorDescr <- findCorrelation(M, cutoff = .20)
+filteredDescr <- DatosCompletos[,-highlyCorDescr]
+descrCor2 <- cor(filteredDescr)
+# summary(descrCor2[upper.tri(descrCor2)])
+```
+
+
+
+
+
+
+
+
+
+```{r}
+## Con SmartEDA
+# ExpNumStat(DatosCompletosCategoricos,by="GA",gp="Marca",Qnt=seq(0,1,0.1),MesofShape=2,Outlier=TRUE,round=2)
+```
+
+
+
+```{r}
+# ExpCTable(DatosCompletosCategoricos,Target="Marca",margin=1,clim=10,nlim=3,round=2,bin=NULL,per=F)
+```
+```{r}
+# ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "IV",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
+```
+
+Asociación de las variables con la variable objetivo: Marca de ordenador preferida:
+
+```{r}
+et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
+et4
+```
+La variable que más asociación guarda con la variable objetivo es el Salario. Para el resto de variables, la relación es muy poca.
+
+
+
+```{r}
+# varimp <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=20,nlim=5,bins=6,Pclass="Yes",plot=TRUE,top=6,Round=2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
