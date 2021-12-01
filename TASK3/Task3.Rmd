@@ -112,9 +112,7 @@ str(DatosProdNuevos)
 str(DatosProdExistentes)
 ```
 
-```{r}
-DatosProdNuevos$ProductType %>% levels()
-```
+
 
 
 ## Descripción de variables
@@ -151,7 +149,7 @@ En ambos conjuntos de datos encontramos 18 variables :
 
 # Preparación de los datos (Limpieza de datos)
 
-En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos ( incompletos) en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
+En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos (incompletos) en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
 
 ```{r}
 str(DatosProdExistentes)
@@ -160,21 +158,8 @@ summary(DatosProdExistentes)
 summary(DatosProdNuevos)
 ```
 
-
-## Datos ficticios (dummy)
-
-```{r}
-# dummy of the data
-newDataFrame <- dummyVars(" ~ .", data = DatosProdExistentes)
-readyData <- data.frame(predict(newDataFrame, newdata = DatosProdExistentes))
-
-#boxplot(readyData[,-c(1,2,3,4,5,6,7,8,9,10,11,12)])
-
-```
-
-
-
 ## Duplicados
+
 
 Mostramos a continuación, las instancias duplicadas en nuestros datasets:
 
@@ -192,13 +177,37 @@ DatosProdNuevos[duplicated(DatosProdNuevos)==TRUE,]
 
 Por tanto, en nuestros conjuntos de datos, no existen instancias duplicadas.
 
+
+
+
+## Datos ficticios (dummy)
+
+Tenemos que transformar la variable product type de factor a variable binaria de (0 y 1)
+
+
+```{r}
+# dummy of the data
+newDataFrame <- dummyVars(" ~ .", data = DatosProdExistentes)
+readyData <- data.frame(predict(newDataFrame, newdata = DatosProdExistentes))
+
+#boxplot(readyData[,-c(1,2,3,4,5,6,7,8,9,10,11,12)])
+
+
+str(readyData)
+
+```
+
+
+
+
 ## Datos faltantes
 
 El conjunto de datos correspondientes al histórico de ventas tiene 15 productos en los que la columna BestSellerRank tiene un valor NA. Es decir, no conocemos la posición en el ranking de mejores vendidos de esos productos
 
 ```{r}
-summary(DatosProdExistentes$BestSellersRank)
+# summary(DatosProdExistentes$BestSellersRank)
 # summary(DatosProdNuevos$BestSellersRank)
+summary(readyData$BestSellersRank)
 ```
 
 ```{r}
@@ -216,6 +225,7 @@ Opción elegida: eliminemos cualquier atributo que tenga datos faltante.
 
 ```{r}
 DatosProdExistentes$attributeWithMissingData <- NULL
+readyData$attributeWithMissingData <- NULL
 ```
 
 
@@ -257,9 +267,7 @@ No necesitamos normalizar las variables para que estén todas en la misma escala
 
 ## Creación de variables
 
-No necesario por el momento.
-
-
+No necesario por el momento. Ya, con dummy data nuestro nuevo dataset _readydata_ contiene una nueva variable binaria para cada tipo de producto, con un uno si el producto es de ese tipo y un 0 si no lo es.
 
 
 
@@ -278,14 +286,21 @@ Dataset: Histórico de ventas
 
 
 ```{r}
-summary(DatosProdExistentes)
+summary(DatosProdExistentes$ProductType)
 ```
+
+
+
 
 
 ```{r}
 summary(DatosProdNuevos)
 ```
 
+
+```{r}
+summary(readyData)
+```
 
 
 -   **Tipo de producto**: La mayoría de productos que existentes en blackwell eran accesorios, seguido de impresoras y extensiones de la garantía. Para los nuevos productos, la mayoría son smartphones o netbooks
@@ -333,8 +348,136 @@ summary(DatosProdNuevos)
 
 ## Representaciones gráficas
 
+### Product type
+
+Vamos a ver el número de productos de cada tipo existentes:
+
+```{r}
+# summary(DatosProdExistentes$ProductType)
+NumeroProductos <- c(26,5 ,10 , 2 ,3,2,4,12,3,4,6,3)
+TipoDeProducto<- DatosProdExistentes$ProductType %>% levels()
 
 
+productosEx <- cbind.data.frame(TipoDeProducto,NumeroProductos) 
+
+productosEx %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+
+```{r}
+ggplot(data=productosEx, aes(x=reorder(TipoDeProducto,-NumeroProductos) , 
+                                     y =NumeroProductos , fill= TipoDeProducto)) + 
+    geom_bar(stat="identity", position="dodge")+
+    scale_y_continuous(breaks = seq(1,28,by=2))+
+      labs(title="Gráfico de barras" ,
+         subtitle= "Tipo de producto y número de productos diferentes", 
+         caption="Fuente: Elaboración propia. ")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+En Blackwell electronics, encontraremos:
+
+- 26 tipos de accesorios diferentes
+- 12 artículos de tipo impresora
+- 10 garantías diferentes
+- 6 posibles softwares diferentes
+- 5 pantallas de ordenador
+- 4 tipos de smartphones distintos, al igual que ordenadores portátiles
+- 2 tipos de notebook diferentes y dos consolas
+- Encontramos 3 articulos de tipo tables y 3 accesorios para las impresoras
+
+
+
+
+### Tipo de producto y volumen ventas (importes generados)
+
+
+
+### Tipo de producto y volumen de ventas 
+
+A continuación vamos a estudiar como ha sido el volumen de ventas en función del tipo de producto y el importe (en dólares) generado por cada tipo de producto.
+
+
+```{r}
+DatosVentas = DatosProdExistentes %>% group_by(ProductType) %>% 
+  summarise(
+    VolumenVentasTotal = sum(Volume),
+    VolumenMedio = mean(Volume),
+    ImporteVenta = sum(Volume*Price),
+    MediaImporteVenta = mean(Volume*Price)
+  )
+DatosVentas %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+
+```{r}
+ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenVentasTotal) , 
+                                     y =VolumenVentasTotal , fill= ProductType)) + 
+    geom_bar(stat="identity", position="dodge") +
+   scale_y_continuous(breaks = seq(0,28000,by=5000))+
+    labs(title="Gráfico de barras" ,
+         subtitle= "Tipo de producto y volumen de venta histórico", 
+         caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas",
+         xlab="Tipo de producto", ylab="Volumen de ventas histórico")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+En el gráfico de barras podemos ver como los accesiorios son el tipo de productos que más volumen de ventas ha generado en las tiendas de Blackwell a lo largo de los años, seguido de las extensiones de la garantías y los videojuegos.
+
+
+
+```{r}
+ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenMedio) , 
+                                     y =VolumenMedio , fill= ProductType)) + 
+    geom_bar(stat="identity", position="dodge") +
+   scale_y_continuous(breaks = seq(0,5000,by=500))+
+    labs(title="Gráfico de barras" ,
+         subtitle= "Tipo de producto y volumen medio de ventas", 
+         caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas",
+         xlab="Tipo de producto", ylab="Volumen de ventas histórico")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+### Tipo de producto e importe generados 
+
+A contuniación, veremos una tabla en la que tenemos expresado el precio total de las ventas generadas por cada tipo de producto, así como el valor medio, es decir, el precio medio de las ventas generadas de cada producto.
+
+
+Vamos a representarlo gráficamente
+
+```{r}
+ggplot(data=DatosVentas, aes(x=reorder(ProductType,-ImporteVenta) , 
+                                     y =ImporteVenta , fill= ProductType)) + 
+    geom_bar(stat="identity", position="dodge") +
+   scale_y_continuous(breaks = seq(0,1800000,by=80000))+
+    labs(title="Gráfico de barras" ,
+         subtitle= "Tipo de producto e importe total generado según ventas", 
+         caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas"
+         )+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+
+```{r}
+ggplot(data=DatosVentas, aes(x=reorder(ProductType,-MediaImporteVenta) , 
+                                     y =MediaImporteVenta , fill= ProductType)) + 
+    geom_bar(stat="identity", position="dodge") +
+   scale_y_continuous(breaks = seq(0,800000,by=90000))+
+    labs(title="Gráfico de barras" ,
+         subtitle= "Tipo de producto e importe medio generado según ventas", 
+         caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas"
+         )+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+Vemos, que el importe medio del volumen total de ventas de los juegos de consola es de 706413.5800 dólares. Es destacable que para accesorios, se han generado 42030.9815 euros de media, siendo éste el tipo de producto que más se ha vendido. Esto significa que se han realizado muchas ventas pero de un importe bajo.
 
 
 ## Grado de asociación de las variables
@@ -358,21 +501,6 @@ corrplot(M, method = "circle",title = "Matriz de correlación")
 
 
 
-Como la variable objetivo es binaria y categórica, tenemos que estudiar la correlación de otra forma.
-
-```{r}
-# Identificando variables predictoras muy correladas
-highCorr <- sum(abs(M[upper.tri(M)]) > .999)
-highCorr # No hay
-
-
-findCorrelation(M, cutoff = .20)
-
-highlyCorDescr <- findCorrelation(M, cutoff = .20)
-filteredDescr <- DatosCompletos[,-highlyCorDescr]
-descrCor2 <- cor(filteredDescr)
-# summary(descrCor2[upper.tri(descrCor2)])
-```
 
 
 
@@ -380,35 +508,6 @@ descrCor2 <- cor(filteredDescr)
 
 
 
-
-
-```{r}
-## Con SmartEDA
-# ExpNumStat(DatosCompletosCategoricos,by="GA",gp="Marca",Qnt=seq(0,1,0.1),MesofShape=2,Outlier=TRUE,round=2)
-```
-
-
-
-```{r}
-# ExpCTable(DatosCompletosCategoricos,Target="Marca",margin=1,clim=10,nlim=3,round=2,bin=NULL,per=F)
-```
-```{r}
-# ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "IV",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
-```
-
-Asociación de las variables con la variable objetivo: Marca de ordenador preferida:
-
-```{r}
-et4 <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=10,nlim=5,bins=10,Pclass="Yes",plot=FALSE,top=20,Round=2)
-et4
-```
-La variable que más asociación guarda con la variable objetivo es el Salario. Para el resto de variables, la relación es muy poca.
-
-
-
-```{r}
-# varimp <- ExpCatStat(DatosCompletosCategoricos,Target="Marca",result = "Stat",clim=20,nlim=5,bins=6,Pclass="Yes",plot=TRUE,top=6,Round=2)
-```
 
 
 
