@@ -388,6 +388,8 @@ DatosMarca %>%
 
 
 
+
+
 En esta tabla observamos que existen más clientes que prefieren la marca Sony, en concreto, el 62.17% de nuestros clientes ha considerado que su marca preferida es Sony.
 
 

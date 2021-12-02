@@ -76,6 +76,9 @@ Para ello, analizaremos los datos correspondientes al histórico de ventas para 
 
 # Descripción de los conjuntos de datos
 
+
+NOTA PARA MI: QUIERO HACER GROUP BY Y SUMARISE DE TODAS LAS VARIABLES DE CARA AL DEA
+
 -   Conjuntos de datos:
 
     -   **DatosProdExistentes**: Histórico de ventas con los 80 productos existentes, sus características y valoraciones
@@ -392,7 +395,8 @@ En Blackwell electronics, encontraremos:
 
 
 
-### Tipo de producto y volumen ventas (importes generados)
+
+
 
 
 
@@ -442,7 +446,8 @@ ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenMedio) ,
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Tipo de producto e importe generados 
+### Tipo de producto y volumen ventas (importes generados)
+
 
 A contuniación, veremos una tabla en la que tenemos expresado el precio total de las ventas generadas por cada tipo de producto, así como el valor medio, es decir, el precio medio de las ventas generadas de cada producto.
 
@@ -480,19 +485,198 @@ ggplot(data=DatosVentas, aes(x=reorder(ProductType,-MediaImporteVenta) ,
 Vemos, que el importe medio del volumen total de ventas de los juegos de consola es de 706413.5800 dólares. Es destacable que para accesorios, se han generado 42030.9815 euros de media, siendo éste el tipo de producto que más se ha vendido. Esto significa que se han realizado muchas ventas pero de un importe bajo.
 
 
-## Grado de asociación de las variables
+### Reseñas vs tipo de producto
+
+Vamos a estudiar como han sido las valoraciones de los clientes con respecto a los diferentes tipos de productos:
 
 
 
 ```{r}
-M = cor(DatosProdExistentes[,-c(1,2,12)])
-corrplot(M, method = "circle",title = "Matriz de correlación")
+Reviews = 
+DatosProdExistentes %>% 
+  group_by(ProductType) %>% 
+  summarise(
+    x5StarReviews = sum(x5StarReviews),
+    x4StarReviews = sum(x4StarReviews),
+    x3StarReviews = sum(x3StarReviews),
+    x2StarReviews = sum(x2StarReviews),
+    x1StarReviews = sum(x1StarReviews)
+  )
 
-M =cor(readyData)
-corrplot(M, method = "circle",title = "Matriz de correlación")
+Reviews %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+Vamos a representarlo gráficamente:
+
+
+
+```{r}
+# df para gráfica
+ df.rep = data.frame(Estrellas = rep(5:1,each=12),
+                    Reviews = c(Reviews$x5StarReviews,
+                                Reviews$x4StarReviews,
+                                Reviews$x3StarReviews,
+                                Reviews$x2StarReviews,
+                                Reviews$x1StarReviews),
+                    ProductType = rep(Reviews$ProductType,5))
+
+
+
+ggplot(data=df.rep, aes(x=Estrellas, 
+                    y=Reviews, fill=ProductType)) + 
+    geom_bar(stat="identity", position="dodge")+
+  labs(title = "Reseñas de los clientes",
+        
+       subtitle = "Según tipo de producto",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Número de reseñas")+
+  xlab("Número de estrellas de la reseña")
+```
+
+Como podemos observar, hay un mayor número de reseñas con 5 estrellas, y en concreto, el producto que más reseñas de 5 estrellas ha recibido son accesorios.
+
+Cabe destacar que los productos de software han recibido gran cantidad de reseñas con una puntiación de 1.
+
+Vamos a ver como se comporta esta variable más concretamente para los siguientes productos: PC, portátiles, netbooks y teléfonos inteligentes.
+
+```{r}
+Reviews2 = Reviews %>% 
+  filter(ProductType== "PC" | ProductType== "Laptop" |ProductType== "Netbook" |
+         ProductType== "Smartphone")
+
+
+# df para gráfica
+ df.rep2 = data.frame(Estrellas = rep(5:1,each=4),
+                    Reviews = c(Reviews2$x5StarReviews,
+                                Reviews2$x4StarReviews,
+                                Reviews2$x3StarReviews,
+                                Reviews2$x2StarReviews,
+                                Reviews2$x1StarReviews),
+                    ProductType = rep(Reviews2$ProductType,5))
+
+
+
+ggplot(data=df.rep2, aes(x=Estrellas, 
+                    y=Reviews, fill=ProductType)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_y_continuous(breaks = seq(0,500,by=50))+
+  labs(title = "Reseñas de los clientes",
+        
+       subtitle = "Según tipo de producto",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Número de reseñas")+
+  xlab("Número de estrellas de la reseña")
+```
+
+
+El mayor número de reseñas positivas es para los smartphones, con gran diferencia. A continuación, le seguirían los ordenadores portátiles, pero con un número de reseñas con 5 puntos mucho menor.
+
+
+
+
+### Evaluación del servicio vs Productos 
+
+
+```{r}
+ServiceReview = 
+DatosProdExistentes %>% 
+  group_by(ProductType) %>% 
+  summarise(
+    PositiveServiceReview = sum(PositiveServiceReview),
+    NegativeServiceReview = sum(NegativeServiceReview)
+  )
+
+ServiceReview %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+
+Vamos a representarlo gráficamente:
+
+
+
+```{r}
+# df para gráfica
+ df.repR = data.frame(Estrellas = rep(c("Positivo","Negativo"),each=12),
+                    Reviews = c(
+                               ServiceReview$PositiveServiceReview,
+                               ServiceReview$NegativeServiceReview),
+                    ProductType = rep(ServiceReview$ProductType,2))
+
+
+
+
+
+ggplot(data=df.repR, aes(x=Estrellas, 
+                    y=Reviews, fill=ProductType)) + 
+    geom_bar(stat="identity", position="dodge")+
+    scale_y_continuous(breaks = seq(0,2500,by=200))+
+  labs(title = "Evaluación del servicio por parte de los clientes",
+        
+       subtitle = "Según tipo de producto",
+       caption = "Fuente: Elaboración propia")+
+  ylab("n")+
+  xlab("Servicio prestado")
+```
+
+Vemos que los tipos de producto _extensión de la garantía_ y _accesorios_ tienen el mayor número de evaluaciones positivas por parte de los clientes por el servicio prestado.
+
+
+Vamos a ver como se comporta esta variable más concretamente para los siguientes productos: PC, portátiles, netbooks y teléfonos inteligentes.
+
+```{r}
+Reviews2R = ServiceReview %>% 
+  filter(ProductType== "PC" | ProductType== "Laptop" |ProductType== "Netbook" |
+         ProductType== "Smartphone")
+
+
+# df para gráfica
+ df.rep2R = data.frame(Estrellas = rep(c("Positivo","Negativo"),each=4),
+                    Reviews = c(
+                               Reviews2R$PositiveServiceReview,
+                               Reviews2R$NegativeServiceReview),
+                    ProductType = rep(Reviews2R$ProductType,2))
+
+
+
+ggplot(data=df.rep2R, aes(x=Estrellas, 
+                    y=Reviews, fill=ProductType)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_y_continuous(breaks = seq(0,50,by=2))+
+  labs(title = "Evaluación del servicio por los clientes",
+       subtitle = "Según tipo de producto",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Número de reseñas")+
+  xlab("Servicio prestado")
+```
+
+Para estos productos, con respecto a la revisión del servicio prestado para los ordenadores portátiles, hay un mayor número de clientes que han considerado que el servicio prestado ha sido negativo (30) frente a los 20 que han considerado un buen servicio. Tambien ocurre en los netbooks, que ha obtenido mayor número de valoracines de un servicio negativo (4) frente a 3 positivos. 
+
+Por el contrario, existe un mayor múmero de reseñas positivas en smartphones y netbooks.
+
+## Correlación
+
+La correlación mide el grado de asociación de las variables. 
+
+```{r}
+corrData <- cor(readyData[,-23])
+
+corrData
+
+# corrplot(corrData, method = "circle",
+#          title = "Matriz de correlación", type = 'lower', diag = FALSE)
+
+
+corrplot.mixed(corrData, title="Matriz de correlación",
+               order = 'hclust')
 
 # Visualice otros metodos gráficos como, 'circle', 'square', 'ellipse',
 # 'number', 'shade', 'color', 'pie',
+
+Accesorios <- readyData[,-c(2,3,4,5,6,7,8,9,10,11,12,13)] %>%  filter(ProductType.Accessories==1)
+corrAccesorios <- cor(Accesorios[,-c(1,11)])
+corrAccesorios
+corrplot(corrAccesorios, title="Matriz de correlación")
+
 ```
 
 
