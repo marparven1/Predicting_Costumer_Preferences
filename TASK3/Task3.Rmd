@@ -30,6 +30,8 @@ library(knitr)
 # Gráficos
 library(ggplot2)
 library(scales)
+library(ggrepel)
+
 ## Matriz de correlación 
 library(corrplot)
 # Análisis exploratioro
@@ -45,7 +47,7 @@ library(caret)
 
 El equipo de ventas de Blackwell Electronics solicita que analicemos los datos correspondientes a las ventas de distintos productos con el **objetivo** de:
 
-- Entender como las ventas varían en función del tipo de producto
+- Entender como varían las ventas en función del tipo de producto
 - Predecir las ventas de cuatro tipos de productos diferentes: PC, portátiles, netbooks y teléfonos inteligentes
 - Evaluar el impacto que tienen las revisiones de los servicios y las reseñas de los clientes en las ventas de diferentes tipos de productos
 
@@ -68,21 +70,23 @@ Para ello, analizaremos los datos correspondientes al histórico de ventas para 
 
 ## Procedimiento para cumplir mis objetivos
 
--   Descripción de datos, pre-procesado, data cleaning y análisis exploratorio
--   Modelado a través de algoritmos de regresión , como por ejemplo:
--   Decisión del método que mejor funciona 
+- Descripción de datos, pre-procesado, data cleaning, análisis exploratorio y feature engineering 
+- Modelado a través de algoritmos de regresión , como por ejemplo: regresión lineal, support vector machine, random forest y gradient boosting
+- Decisión del método que mejor predice el volumen de ventas de los diferentes productos
 - Una vez tengamos el modelo final, predecir las ventas de los cuatro tipos de productos informáticos
 
 
 # Descripción de los conjuntos de datos
 
 
-NOTA PARA MI: QUIERO HACER GROUP BY Y SUMARISE DE TODAS LAS VARIABLES DE CARA AL DEA
+
 
 -   Conjuntos de datos:
 
     -   **DatosProdExistentes**: Histórico de ventas con los 80 productos existentes, sus características y valoraciones
     -   **DatosProdNuevos**: Dataset con 24 nuevos productos, sus características y valoraciones
+    
+Aquí encontramos la primera limitación de los datos, tenemos muy pocos registros y de cara a modelar nuestra variable _volumen de ventas_ esto va a suponer un problema para dividir en datos de entrenamiento y testeo, pero es algo que desarrolaremos en el apartado de modelado.
 
 ```{r}
 DatosProdExistentes<-read.csv(file="DATOS/existingproductattributes2017.csv",header = TRUE,sep = ",",dec ="." )
@@ -107,21 +111,14 @@ DatosProdNuevos %>%
 ```
 
 
-```{r}
-str(DatosProdNuevos)
-```
-
-```{r}
-str(DatosProdExistentes)
-```
 
 
 
 
 ## Descripción de variables
 
--   Datos de entrenamiento y validación: 80 productos diferentes
--   Datos de testeo: 24 productos diferentes
+-   Datos del histórico de ventas: 80 productos diferentes
+-   Datos de nuevos productos: 24 productos diferentes
 
 En ambos conjuntos de datos encontramos 18 variables :
 
@@ -193,9 +190,6 @@ Tenemos que transformar la variable product type de factor a variable binaria de
 newDataFrame <- dummyVars(" ~ .", data = DatosProdExistentes)
 readyData <- data.frame(predict(newDataFrame, newdata = DatosProdExistentes))
 
-#boxplot(readyData[,-c(1,2,3,4,5,6,7,8,9,10,11,12)])
-
-
 str(readyData)
 
 ```
@@ -205,7 +199,7 @@ str(readyData)
 
 ## Datos faltantes
 
-El conjunto de datos correspondientes al histórico de ventas tiene 15 productos en los que la columna BestSellerRank tiene un valor NA. Es decir, no conocemos la posición en el ranking de mejores vendidos de esos productos
+El conjunto de datos correspondientes al histórico de ventas tiene 15 productos en los que la columna BestSellerRank tiene un valor NA. Es decir, no conocemos la posición en el ranking de mejores vendidos que ocuparían estos productos.
 
 ```{r}
 # summary(DatosProdExistentes$BestSellersRank)
@@ -213,10 +207,13 @@ El conjunto de datos correspondientes al histórico de ventas tiene 15 productos
 summary(readyData$BestSellersRank)
 ```
 
+Vamos a ver de que productos se trata:
+
+
 ```{r}
 DatosProdExistentes %>% 
   filter(
-    is.na(BestSellersRank )
+   # is.na(BestSellersRank )
   ) %>% kable(booktabs=TRUE) %>% 
   kable_styling(latex_options = "striped")
 ```
@@ -224,11 +221,11 @@ DatosProdExistentes %>%
 
 Las opciones son las siguientes: imputar el valor que ocuparía en el ranking, eliminar esos registros (no debemos), eliminar esa columna del estudio. 
 
-Opción elegida: eliminemos cualquier atributo que tenga datos faltante.
+Opción elegida: eliminemos cualquier atributo que tenga datos faltantes.
 
-```{r}
-DatosProdExistentes$attributeWithMissingData <- NULL
-readyData$attributeWithMissingData <- NULL
+```{r  echo=TRUE}
+DatosProdExistentes$BestSellersRank<- NULL
+readyData$BestSellersRank<- NULL
 ```
 
 
@@ -236,7 +233,7 @@ readyData$attributeWithMissingData <- NULL
 
 ## Outliers
 
--   En el dataset de entrenamiento *Datos de Productos existentes*, encontramos valores atípicos en bastantes variables (no estudio outliers de la variable ID, porque no tiene sentido)
+-   En el dataset de entrenamiento *Datos de Productos existentes*, encontramos valores atípicos en bastantes variables (no estudio outliers de la variable ID (número del producto), porque no tiene sentido)
 
 
 ```{r}
@@ -249,9 +246,36 @@ boxplot(DatosProdExistentes[,11],main="BoxPlot. Recommend product \n Datos Compl
 
 boxplot(DatosProdExistentes[,13:16],main="BoxPlot. Dimensiones del prducto \n Datos Completos")
 
-boxplot(DatosProdExistentes[,18],main="BoxPlot. Volumen de ventas \n Datos Completos",
+boxplot(DatosProdExistentes[,17],main="BoxPlot. Volumen de ventas \n Datos Completos",
         xlab="Volumen de ventas")
 ```
+
+En este último gráfico identificamos dos valores atípicos de ventas (11204 y 7036), que corresponden a un volumen de venta muy grande en comparación al resto. Vamos a identificar de que productos se trata. 
+
+```{r}
+
+DatosProdExistentes %>% 
+    filter(Volume==11204 | Volume == 7036) %>% 
+#  select("ProductType","Volume","ProductNum") %>% 
+  kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+  
+```
+
+Se trata de un tipo de accesorios y juegos para la consola. Estos dos tipos de producto no son productos sobre los que queramos realizar predicciones. Este tipo de valores atípicos pueden afectar a la variable objetivo _volume_ a la hora de la construcción de modelos de predicción.
+Por lo que vamos a proceder a eliminar estos dos registros de mi conjunto de datos.
+
+
+```{r}
+DatosProdExistentes2 <- DatosProdExistentes %>% 
+    filter(Volume!=11204) %>% 
+    filter(Volume !=7036 )
+
+
+readyData2 <- readyData %>% 
+    filter(Volume!=11204) %>% 
+    filter(Volume !=7036 )
+```
+
 
 ## Transformación de variables
 
@@ -279,14 +303,14 @@ No necesario por el momento. Ya, con dummy data nuestro nuevo dataset _readydata
 
 # Análisis exploratorio
 
-```{r}
-# Nota para mí: Describiré el DSP, recordando las preguntas de Danielle Sherman
-```
+
 
 Comenzaremos con un breve resumen estadístico de nuestros datos:
 
-Dataset: Histórico de ventas
 
+
+
+## Resumen según tipo de producto
 
 ```{r}
 summary(DatosProdExistentes$ProductType)
@@ -314,35 +338,7 @@ summary(readyData)
 
 
 
-## Resumen según tipo de producto
 
-```{r}
-#DatosCompletosCategoricos %>% 
-#  group_by(Marca) %>% 
-#  summarise(
-#  SalarioMedio = mean(salary)  ,
-#  EdadMedia = age %>% mean() ,
-#  CreditoMedio = credit %>% mean() ,
-#) %>% kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida \n #Variables Numéricas")
-```
-
-
-```{r}
-#DatosMarca = DatosCompletosCategoricos %>% 
-#  group_by(Marca) %>% 
-#  count()
-```
-
-
-
-```{r}
-#DatosMarca %>% 
-#  mutate(
-#    TOTAL = 3744+6154 ,
-#    Frecuencia =round( 100*(n / TOTAL) , 2 )) %>% 
-#  select(n,Frecuencia) %>% 
-#  kable(booktabs=TRUE, caption="Resumen estadístico según marca preferida",col.names #= c("Marca","Número de clientes","Frecuencia"),align = "l")
-```
 
 
 
@@ -385,7 +381,7 @@ En Blackwell electronics, encontraremos:
 
 - 26 tipos de accesorios diferentes
 - 12 artículos de tipo impresora
-- 10 garantías diferentes
+- 10 tipos de garantías diferentes
 - 6 posibles softwares diferentes
 - 5 pantallas de ordenador
 - 4 tipos de smartphones distintos, al igual que ordenadores portátiles
@@ -434,7 +430,12 @@ En el gráfico de barras podemos ver como los accesiorios son el tipo de product
 
 
 
-```{r}
+
+
+
+
+
+```{r include=FALSE}
 ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenMedio) , 
                                      y =VolumenMedio , fill= ProductType)) + 
     geom_bar(stat="identity", position="dodge") +
@@ -446,10 +447,238 @@ ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenMedio) ,
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
+
+
+Vamos a representar cada tipo de producto en función del volumen de ventas
+
+
+
+#### Ordenadores PC
+
+
+
+
+```{r}
+DatosProdExistentes %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="PC") %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+```{r}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(101,102,103,142),
+                    Volume = c(12,8,12,84))
+
+
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks = seq(100,150,by=2))+
+  scale_y_continuous(breaks = seq(5,90,by=5))+
+  labs(title = "Volumen histórico de ventas de PC",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")
+```
+
+La mayoría de las ventas de ordenador corresponden a ún único modelo, el producto 142 con un total de 84 ventas, mientras que los otros 3 modelos han tenido un volumen de ventas de 12, 12 y 6 unidades a lo largo de toda la historia de ventas.
+
+#### Ordenadores portátiles
+
+```{r}
+DatosProdExistentes %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="Laptop")%>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(104,105,143),
+                    Volume = c(196,232,88))
+
+
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks = seq(100,150,by=1))+
+  scale_y_continuous(breaks = seq(0,250,by=10))+
+  labs(title = "Volumen del histórico de ventas de ordenadores portátiles",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+El ordenador portatil 143 ha tenido un volumen bajo con respecto al los otros dos modelos de portátiles, el 105 que es el que más se ha vendido (232 unidades) y el 104, con un total de 196 ventas.
+
+```{r}
+DatosProdExistentes %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="Smartphone") %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+
+```{r}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(190,191,192,197),
+                    Volume = c(16,248,72,1472))
+
+
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks = seq(190,200,by=1))+
+  scale_y_continuous(breaks = seq(0,1500,by=100))+
+  labs(title = "Volumen del histórico de ventas de smartphones",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")
+```
+
+
+El smartphone 197 es, con gran diferencia, el que más se vende de los cuatro modelos disponibles, con un total de 1472 ventas. Por el contrario, el 190 se ha vendido 16 veces en toda la historia de la tienda.
+
+
+```{r}
+DatosProdExistentes %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="Netbook")%>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+
+
+
+```{r}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(177,182),
+                    Volume = c(4,88))
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks = c(177,182), labels = c(177,182))+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+  labs(title = "Volumen del histórico de ventas de Netbooks",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")
+```
+
+El netbook 182 se vende mucho más que el 177 (4 ventas totales)
+
+
+#### Comparación
+
+Vamos a hacer una comparación global
+
+```{r}
+df.repPC = data.frame(ProductNum = c(101,102,103,142),
+                    Volume = c(12,8,12,84))
+df.repPort = data.frame(ProductNum = c(104,105,143),
+                    Volume = c(196,232,88))
+df.repSMar = data.frame(ProductNum = c(190,191,192,197),
+                    Volume = c(16,248,72,1472))
+df.repNet = data.frame(ProductNum = c(177,182),
+                    Volume = c(4,88))
+  
+df = data.frame(
+    ProductType = c(rep("PC",4),rep("Laptop",3),rep("Smartphone",4),rep("Netbook",2)),
+    Volume=c(12,8,12,84,196,232,88,16,248,72,1472,4,88),
+    ProductNum=c(101,102,103,142,104,105,143,190,191,192,197,177,182))
+ggplot(data=df, aes(x=ProductNum, 
+                  y=Volume, fill=ProductType)) + 
+  geom_bar(stat="identity", position="dodge")+
+scale_x_continuous(breaks = seq(100,200,by=3))+
+scale_y_continuous(breaks = seq(0,2000,by=100))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+labs(title = "Comparación del volumen del histórico de ventas",
+     subtitle = "Según tipo de Productos",
+     caption = "Fuente: Elaboración propia")+
+xlab("Número de identificación del producto")+
+ylab("Número de ventas")
+```
+
+
+Conclusiones: 
+
+- La mayoría de ventas corresponden a Samrthpones, en concreto al smartphone 197, con un volumen de ventas total de 1472. Con gran diferencia, este es el producto que más se ha vendido a lo largo de los años
+- Los ordenadores tipo PC y netbook son los que menos se han vendido a lo largo de los años
+
+Vamos a ver la gráfica sin ese dato para poder hacer una mejor comparativa de las ventas del resto de productos.
+
+```{r}
+df = data.frame(
+    ProductType = c(rep("PC",4),rep("Laptop",3),rep("Smartphone",3),rep("Netbook",2)),
+    Volume=c(12,8,12,84,196,232,88,16,248,72,4,88),
+    ProductNum=c(101,102,103,142,104,105,143,190,191,192,177,182))
+ggplot(data=df, aes(x=ProductNum, 
+                  y=Volume, fill=ProductType)) + 
+  geom_bar(stat="identity", position="dodge")+
+scale_x_continuous(breaks = seq(100,200,by=3))+
+scale_y_continuous(breaks = seq(0,2000,by=100))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+labs(title = "Comparación del volumen del histórico de ventas",
+     subtitle = "Según tipo de Productos",
+     caption = "Fuente: Elaboración propia")+
+ylab("Número de identificación del producto")+
+xlab("Número de ventas")
+```
+
+
+
+
+
+```{r}
+# DatosProdExistentes %>% 
+#   group_by(ProductType) %>% 
+#   filter(ProductType=="Accessories")
+# 
+# DatosProdExistentes %>% 
+#   group_by(ProductType) %>% 
+#   filter(ProductType=="Printer")
+# 
+# DatosProdExistentes %>% 
+#   group_by(ProductType) %>% 
+#   filter(ProductType=="ExtendedWarranty")
+# 
+# DatosProdExistentes %>% 
+#   group_by(ProductType) %>% 
+#   filter(ProductType=="Display")
+# 
+# DatosProdExistentes %>% 
+#   group_by(ProductType) %>% 
+#   filter(ProductType=="PrinterSupplies")
+# DatosProdExistentes %>% 
+#   group_by(ProductType) %>% 
+#   filter(ProductType=="Tablet")
+# 
+# DatosProdExistentes %>% 
+#   group_by(ProductType) %>% 
+#   filter(ProductType=="GameConsole")
+```
+
+
+
+
+
 ### Tipo de producto y volumen ventas (importes generados)
 
 
-A contuniación, veremos una tabla en la que tenemos expresado el precio total de las ventas generadas por cada tipo de producto, así como el valor medio, es decir, el precio medio de las ventas generadas de cada producto.
+A continuación, veremos una tabla en la que tenemos expresado el importe total de las ventas generadas por cada tipo de producto, así como el valor medio, es decir, el importe medio de las ventas generadas de cada producto.
 
 
 Vamos a representarlo gráficamente
@@ -574,8 +803,150 @@ El mayor número de reseñas positivas es para los smartphones, con gran diferen
 
 
 
-### Evaluación del servicio vs Productos 
 
+```{r include=FALSE}
+D= DatosProdExistentes %>% 
+  filter(ProductType=="PC" | ProductType=="Laptop" |ProductType=="Smartphone" | ProductType=="Netbook") %>% 
+    group_by(ProductType) %>% 
+    select(2:10)
+```
+
+
+```{r include=FALSE}
+df.estrellas =     data.frame(
+  ProductType = rep(c("PC" ,"PC", "PC", "Laptop","Laptop"  ,   "PC" ,"Laptop"   ,  "Netbook"  ,  "Smartphone" ,"Smartphone" ,"Smartphone" ,"Netbook", "Smartphone"),5),
+  Estrellas = rep(rep(5:1,each=13),1),
+  Reviews = c(D$x5StarReviews,
+              D$x4StarReviews,
+              D$x3StarReviews,
+              D$x2StarReviews,
+              D$x1StarReviews),
+  ProductNum=D$ProductNum
+)
+
+
+
+ggplot(data=df.estrellas, aes(x=ProductNum, 
+                    y=Reviews, fill=Estrellas, color=ProductType)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_y_continuous(breaks = seq(0,500,by=50))+
+  labs(title = "Reseñas de los clientes",
+        
+       subtitle = "Según tipo de producto y número de estrellas",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de identificación del producto")
+# Hacer para cada tipo de producto, es más fácil de interpretar.
+```
+
+
+### Impacto de las reseñas en el volumen de ventas
+ 
+ FALTA COMENTAR ESTOS GRÁFICOS
+
+Vamos a estudiar si las reseñas de los clientes guardan alguna relación con el volumen de ventas de los productos PC, Portátiles, netbooks y smartphones.
+
+
+```{r}
+scatter = DatosProdExistentes %>% 
+  select(1,2,4,5,6,7,8,17) %>% 
+  filter(ProductType=="PC" | ProductType=="Laptop" |ProductType=="Smartphone" | ProductType=="Netbook")
+df.scatter = data.frame(
+  reseña = rep(c("x5StarReviews","x4StarReviews","x3StarReviews","x2StarReviews","x1StarReviews"),each=13),
+  Estrellas = c(scatter$x5StarReviews,
+              scatter$x4StarReviews,
+              scatter$x3StarReviews,
+              scatter$x2StarReviews,
+              scatter$x1StarReviews),
+  ProductNum = rep(c(101 ,102 ,103 ,104 ,105, 142 ,143, 177 ,190 ,191 ,192 ,182 ,197),5),
+  ProductType = rep(scatter$ProductType,5),
+  Volume = rep(scatter$Volume,5)
+)
+
+
+library(hrbrthemes)
+ggplot(df.scatter, aes(x=Estrellas, y=Volume, colour=reseña)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    scale_x_continuous(breaks = seq(0,500,by=50))+
+  scale_y_continuous(breaks = seq(0,2000,by=150))+
+    labs(title = "Impacto de las reseñas en el volumen de venta",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()
+```
+
+
+```{r}
+df.scatterPC = df.scatter %>% filter(ProductType=="PC")
+ggplot(df.scatterPC, aes(x=Estrellas, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto de las reseñas en el volumen de venta de PCs",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()
+```
+
+```{r}
+library(ggrepel)
+df.scatterLaptop = df.scatter %>% filter(ProductType=="Laptop")
+ggplot(df.scatterLaptop, aes(x=Estrellas, y=Volume, colour=reseña,label =ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel()+
+    scale_x_continuous(breaks = seq(0,60,by=5))+
+  scale_y_continuous(breaks = seq(0,300,by=20))+
+    labs(title = "Impacto de las reseñas en el volumen de venta de Portátiles",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()
+```
+
+
+```{r}
+df.scatterNet = df.scatter %>% filter(ProductType=="Netbook")
+ggplot(df.scatterNet, aes(x=Estrellas, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel(box.padding = 0.5, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,25,by=1))+
+  scale_y_continuous(breaks = seq(0,200,by=10))+
+    labs(title = "Impacto de las reseñas en el volumen de venta de Netbooks",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme_ipsum()
+```
+
+```{r}
+df.scatterSmt = df.scatter %>% filter(ProductType=="Smartphone")
+ggplot(df.scatterSmt, aes(x=Estrellas, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel(box.padding = 0.5, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,400,by=20))+
+  scale_y_continuous(breaks = seq(0,2500,by=200))+
+    labs(title = "Impacto de las reseñas en el volumen de venta de Smartphones",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+### Impacto de la evaluación del servicio en el volumen de ventas
+
+En este apartado, nuestro objetivo es estudiar si encontramos alguna relación entre el volumen de venta histórico de un producto y el número de reseñas positivas o negativas que ha recibido por el servicio prestado.
 
 ```{r}
 ServiceReview = 
@@ -587,14 +958,8 @@ DatosProdExistentes %>%
   )
 
 ServiceReview %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
-```
 
-
-Vamos a representarlo gráficamente:
-
-
-
-```{r}
+# Vamos a representarlo gráficamente:
 # df para gráfica
  df.repR = data.frame(Estrellas = rep(c("Positivo","Negativo"),each=12),
                     Reviews = c(
@@ -621,9 +986,14 @@ ggplot(data=df.repR, aes(x=Estrellas,
 Vemos que los tipos de producto _extensión de la garantía_ y _accesorios_ tienen el mayor número de evaluaciones positivas por parte de los clientes por el servicio prestado.
 
 
-Vamos a ver como se comporta esta variable más concretamente para los siguientes productos: PC, portátiles, netbooks y teléfonos inteligentes.
+Vamos a ver como se comporta esta variable más concretamente para los siguientes  productos: PC, portátiles, netbooks y teléfonos inteligentes, identificando los  diferentes modelos que hay para cada tipo de producto.
+
+
+
 
 ```{r}
+
+
 Reviews2R = ServiceReview %>% 
   filter(ProductType== "PC" | ProductType== "Laptop" |ProductType== "Netbook" |
          ProductType== "Smartphone")
@@ -648,45 +1018,214 @@ ggplot(data=df.rep2R, aes(x=Estrellas,
   ylab("Número de reseñas")+
   xlab("Servicio prestado")
 ```
-
-Para estos productos, con respecto a la revisión del servicio prestado para los ordenadores portátiles, hay un mayor número de clientes que han considerado que el servicio prestado ha sido negativo (30) frente a los 20 que han considerado un buen servicio. Tambien ocurre en los netbooks, que ha obtenido mayor número de valoracines de un servicio negativo (4) frente a 3 positivos. 
+Para estos productos, con respecto a la revisión del servicio prestado para los  ordenadores portátiles, hay un mayor número de clientes que han considerado que el  servicio prestado ha sido negativo (30) frente a los 20 que han considerado un buen  servicio. Tambien ocurre en los netbooks, que ha obtenido mayor número de valoracines de un servicio negativo (4) frente a 3 positivos. 
 
 Por el contrario, existe un mayor múmero de reseñas positivas en smartphones y netbooks.
 
-## Correlación
 
-La correlación mide el grado de asociación de las variables. 
+Veamos como es el volumen de ventas en función del número de reseñas del servicio pero para cada tipo de producto.
+
 
 ```{r}
-corrData <- cor(readyData[,-23])
-
-corrData
-
-# corrplot(corrData, method = "circle",
-#          title = "Matriz de correlación", type = 'lower', diag = FALSE)
+scatter2 = DatosProdExistentes %>% 
+  select(1,2,9,10,17) %>% 
+  filter(ProductType=="PC" | ProductType=="Laptop" |ProductType=="Smartphone" | ProductType=="Netbook")
+```
 
 
-corrplot.mixed(corrData, title="Matriz de correlación",
-               order = 'hclust')
+```{r}
+df.scatter2 = data.frame(
+  reseña = rep(c("PositiveServiceReview","NegativeServiceReview"),each=13),
+  Valoracion = c(scatter2$PositiveServiceReview,
+                 scatter2$NegativeServiceReview),
+  ProductNum = rep(c(101 ,102 ,103 ,104 ,105, 142 ,143, 177 ,190 ,191 ,192 ,182 ,197),2),
+  ProductType = rep(scatter2$ProductType,2),
+  Volume = rep(scatter2$Volume,2)
+)
 
-# Visualice otros metodos gráficos como, 'circle', 'square', 'ellipse',
-# 'number', 'shade', 'color', 'pie',
+ggplot(df.scatter2, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel(max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,25,by=1))+
+  scale_y_continuous(breaks = seq(0,1500,by=100))+
+    labs(title = "Impacto de la evaluación del servicio en el volumen de ventas",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
 
-Accesorios <- readyData[,-c(2,3,4,5,6,7,8,9,10,11,12,13)] %>%  filter(ProductType.Accessories==1)
-corrAccesorios <- cor(Accesorios[,-c(1,11)])
-corrAccesorios
-corrplot(corrAccesorios, title="Matriz de correlación")
+Vemos que la mayoría de puntos se sitúan en torno a la recta roja y dentro del intervalo de confianza que vemos azul. 
 
+Cada punto representa un producto específico, identificado por un número. Cada número puede estar repetido dos veces debido a que un cliente ha podido considerar que ha recibido un buen servicio y otro un mal servicio, ambos refiriendose al mismo producto concreto.
+
+Los puntos "peligrosos" serían aquellos que referentes a reseñas negativas (rojos) pero con un gran volumen de ventas, serían puntos rojos que estarían situados en la zona superior derecha de los gráficos.
+
+Con respecto a este gráfico, el producto 197 ha recibido 22 reseñas de servicio positivo y únicamente 3 de un servicio negativo, y ha tenido más de 1300 ventas.
+
+No tenemos puntos con un grán número de reseñas negativas y con un gran volumen de ventas. El producto 105 ha sido el que mayor número de reseñas por un mal servicio ha recibido, en concreto 20 valoraciones negarivas y únicamente 7 reseñas positivas. El volumen de ventas de este producto ha sido de casi 200 unidades.
+
+
+```{r}
+df.scatter2PC = df.scatter2 %>% filter(ProductType=="PC")
+ggplot(df.scatter2PC, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel( max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,5,by=1))+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de PCs",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
+
+```{r}
+df.scatter2Laptop = df.scatter2 %>% filter(ProductType=="Laptop")
+ggplot(df.scatter2Laptop, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel( max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,20,by=1))+
+  scale_y_continuous(breaks = seq(0,400,by=50))+
+    labs(title = "Impacto del servicio en el volumen de ventas de Portátiles",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
+
+
+```{r}
+df.scatter2Net = df.scatter2 %>% filter(ProductType=="Netbook")
+ggplot(df.scatter2Net, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel( max.overlaps = Inf)+
+  # scale_x_continuous(breaks = seq(0,3,by=1))+
+  # scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de Netbooks",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
+
+```{r}
+df.scatter2Smt = df.scatter2 %>% filter(ProductType=="Smartphone")
+ggplot(df.scatter2Smt, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel(box.padding = 0.5, max.overlaps = Inf)+
+   scale_x_continuous(breaks = seq(0,25,by=1))+
+   scale_y_continuous(breaks = seq(0,2000,by=200))+
+    labs(title = "Impacto del servicio en el volumen de ventas de Smartphones",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()+
+  theme(axis.text.y = element_text(angle = 10, hjust = 1))
 ```
 
 
 
+Falta comentarlas
 
 
 
+## Correlación
+
+
+La correlación mide el grado de asociación de las variables. 
+Vamos a estudiar la posibilidad de eliminar las variables que no necesitamos para el análisis (baja correlación con la variable objetivo o colinealidad, esto último entre varaibles independientes)
+
+```{r}
+corrData <- cor(readyData2)
+#corrData 
+
+corrplot(corrData, method = "number", number.cex = 0.5 ,
+         title = "Matriz de correlación", 
+         type = 'lower',
+         diag = FALSE)
+```
+
+Correlación:
+
+
+- **Volumen de ventas y reseñas de los clientes**: 
+  - La variable volumen de ventas relación lineal positiva con la variable reseñas positivas (0.622) 
+  - Con reseñas negativas, la relación tambien es positiva, pero es menos fuerte ( 0.309), es menos de la mitad
+
+  
+- **Volumen de ventas y reseñas del servicio prestado**: El comportamiento humano es dificil de predecir.
+
+  - Existe una correlación lineal perfecta entre la variable target _volumen de ventas_ y la variable _5 estrellas_. Es decir, la variable objetivo queda perfectamente explicada por esta varaible y por tanto en cualquier modelo el resto de variables no van a participar
+
+Por este motivo, vamos a estudiar como es la correlación entre las variables 1,2,3,4 y 5 estrellas y también con la variable objetivo, volumen de ventas para hacer una selección de variables.
+
+```{r}
+corrReseñas <- cor(readyData2[,c(15,16,17,18,19,28)])
+corrReseñas %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+
+corrplot(corrReseñas, method = "number", number.cex = 0.5 ,
+         title = "Matriz de correlación", 
+         type = 'lower',
+         diag = FALSE)
+```
+
+Observamos que estas variables están fuertemente correladas y esto puede indicar _colinealidad, ya que es entre variables independientes_. Consideraremos que existe colinealidad a partir de una correlación de 0.9.
+
+De esta forma, se tiene:
+
+- **Variables 1 y 2 estrellas**: La correlación es de 0.95, es la mayor de todas. De estas dos variables, la correlación con la variable volumen de ventas es, respectivamente: 0.49 y 0.26, por tanto, me quedo con la variable 1 estrella, que es la más correlada con mi variable objetivo
+
+- **Variables 4 y 3 estrellas**: La correlación es 0.94, es muy alta. La variable que tiene una mayor correlación con la variable objetivo es la variable 4 estrellas (0.88), ya que 3 estrellas tiene una correlación de 0.76 con el volumne de ventas. Mantengo en mi conjunto de datos la variable 4 estrellas
+
+Conclusión: Eliminamos del estudio las variables 5 estrella, 3 estrellas y 2 estrellas, debido a la colinealidad existente entre estas variables y por unacorrelación perfecta, que hará que no participe ninguna variable a la hora de construir modelos de predicción:
+
+```{r}
+readyData2$x5StarReviews <- NULL
+readyData2$x3StarReviews  <- NULL
+readyData2$x1StarReviews  <- NULL
+
+DatosProdExistentes2$x5StarReviews <- NULL
+DatosProdExistentes2$x3StarReviews <- NULL
+DatosProdExistentes2$x1StarReviews <- NULL
+```
+
+
+  
+- Precio y tipo de producto: Parece que la variable precio guarda relación significativa con alguna de las variables tipo del procucto
+
+```{r}
+corrDataType <- cor(readyData2[,c(1,2,3,4,5,6,7,8,9,10,11,12,14,25)])
+# corrData
+#corrDataType %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+
+```{r}
+corrplot(corrDataType, method = "number",
+         title = "Matriz de correlación", type = 'lower', diag = FALSE)
+
+```
+
+Estas variables están muy poco correladas con la variable objetivo _volumen de ventas_ y por tanto, a la hora de construir modelos, no van a participar a penas en la predicción de nuestra variable.
+
+La mayor correlación con esta variable es con los juegos para la consola (0.32) y con los ordenadores portátiles.
 
 
 
+- Volumen de ventas y medias del artículo: La correlación es muy baja y por tanto, estas variables no van a tener importancia a penas a la hora de predecir cuando modelemos la variable volumen de ventas con el resto de variables independientes.
+
+|Variable        |  Correlación con _Volumen_|
+|----------------|---------------------------|                 
+|ShippingWeight  |           -0.188023980    |
+|ProductDepth    |            0.066105249    |
+|ProductWidth    |           -0.143436609    |
+|ProductHeight   |           -0.160004003    |
 
 
 
