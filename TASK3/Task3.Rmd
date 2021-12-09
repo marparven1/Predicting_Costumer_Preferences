@@ -2,7 +2,7 @@
 title: "Proyecto Blackwell Electronics. Data Science Process"
 subtitle: "Módulo 3 Tarea 3: Regresión múltiple. Análisis de predicción de ventas"
 author: "Marta Venegas Pardo"
-date: "30/Noviembre/2021"
+date: "10 de Diciembre de 2021"
 output:
   prettydoc::html_pretty:
     theme: leonids
@@ -14,8 +14,7 @@ lang: es
 ---
 
 ```{r setup, include=FALSE,message=FALSE,warning=FALSE}
-knitr::opts_chunk$set(message=FALSE,warning=FALSE , echo = FALSE, fig.align = "center"
-  )
+knitr::opts_chunk$set(message=FALSE,warning=FALSE , echo = FALSE)
 ```
 
 ```{r librerías}
@@ -278,6 +277,10 @@ readyData2 <- readyData %>%
 ```
 
 
+
+
+
+
 ## Transformación de variables
 
 ### Factorización de las variables
@@ -502,6 +505,28 @@ La mayor correlación con esta variable es con los juegos para la consola (0.32)
 
 
 
+
+
+
+
+## Varianza de las variables dummy
+
+Al estar trabajando con datos dummy, las variables de tipos de productos son 0 y 1, se trata de variables con gran cantidad de registros con un valor 0 y por tanto, esas variables tendrán una varianza muy próxima a 0. 
+
+Esto es un problema a la hora de entrenar modelos, porque a la hora de hacer una partición en datos de entrenamiento y testeo, como es probable que tengamos variables con varianzas próximas a 0, esto supondrá errores en los modelos.
+
+```{r}
+readyData2
+
+
+Var = (apply(readyData2, 2, var )*(nrow(readyData2)-1))/(nrow(readyData2))
+Var %>% kable(caption = "Varianza de las variables",col.names = "Varianza")
+```
+
+
+Las varianzas de las variables _Product type_ son muy pequeñas, todas son menores que 0,2 y la más pequeña es de 0,012, esto son valores muy bajos para una varianza de cara a modelar.
+
+Además, habíamos visto que prácticamente todas salvo las variables _product type_ tenían una correlación con el volumen de ventas muy baja. Optaremos por eliminar de los datos de cara a elaborar modelo todas las variables product type debido a que nos llevarán a tener peores métricas y más variabilidad en los modelos.
 
 
 
@@ -912,6 +937,7 @@ Para tratar de comprender el comportamiento de esta variable en el volumen de ve
 
 
 ### Impacto de las reseñas en el volumen de ventas
+
 ```{r ,out.width="50%", out.height="50%" }
 scatter = DatosProdExistentes %>% 
   select(1,2,5,7,17) %>% 
@@ -1055,7 +1081,7 @@ ggplot(df.scatter4EstLaptop, aes(x=Estrellas, y=Volume, label=ProductNum)) +
     geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
   scale_x_continuous(breaks = seq(0,30,by=1))+
   #scale_y_continuous(breaks = seq(0,150,by=10))+
-    labs(title = "Impacto de las reseñas en el volumen de venta de portátiles",
+    labs(title = "Impacto de las reseñas \n en el volumen de venta de portátiles",
                   subtitle = "Variable 4 estrellas",
        caption = "Fuente: Elaboración propia")+
   ylab("Volumen de ventas")+
@@ -1066,11 +1092,11 @@ ggplot(df.scatter4EstLaptop, aes(x=Estrellas, y=Volume, label=ProductNum)) +
 df.scatter2EstLaptop= df.scatter %>% filter(ProductType=="Laptop" & reseña=="x2StarReviews")
 ggplot(df.scatter2EstLaptop, aes(x=Estrellas, y=Volume, label=ProductNum)) +
   geom_point() +
-  #geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
     geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
   scale_x_continuous(breaks = seq(0,22,by=1))+
   #scale_y_continuous(breaks = seq(0,150,by=10))+
-    labs(title = "Impacto de las reseñas en el volumen de venta de portátitles",
+    labs(title = "Impacto de las reseñas \n en el volumen de venta de portátitles",
                   subtitle = "Variable 2 estrellas",
        caption = "Fuente: Elaboración propia")+
   ylab("Volumen de ventas")+
@@ -1082,39 +1108,65 @@ ggplot(df.scatter2EstLaptop, aes(x=Estrellas, y=Volume, label=ProductNum)) +
 
 
 
+```{r ,out.width="50%", out.height="50%", include=FALSE}
+df.scatterLaptop = df.scatter %>% filter(ProductType=="Laptop")
+ggplot(df.scatterLaptop, aes(x=Estrellas, y=Volume, colour=reseña,label =ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel()+
+    scale_x_continuous(breaks = seq(0,60,by=5))+
+  scale_y_continuous(breaks = seq(0,300,by=20))+
+    labs(title = "Impacto de las reseñas en el volumen de venta de Portátiles",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()
+
+
+
+```
+
+
 ```{r ,out.width="50%", out.height="50%"}
-df.scatterLaptop = df.scatter %>% filter(ProductType=="Laptop")
-ggplot(df.scatterLaptop, aes(x=Estrellas, y=Volume, colour=reseña,label =ProductNum)) +
+# , fig.width='200px' , fig.height='200px' 
+df.scatter4EstNetbook = df.scatter %>% filter(ProductType=="Netbook" & reseña=="x4StarReviews")
+ggplot(df.scatter4EstNetbook, aes(x=Estrellas, y=Volume, label=ProductNum)) +
   geom_point() +
   geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
-  geom_text_repel()+
-    scale_x_continuous(breaks = seq(0,60,by=5))+
-  scale_y_continuous(breaks = seq(0,300,by=20))+
-    labs(title = "Impacto de las reseñas en el volumen de venta de Portátiles",
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,30,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto de las reseñas \n en el volumen de venta de Netbooks",
+                  subtitle = "Variable 4 estrellas",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()
+
+
+df.scatter2EstNetbook= df.scatter %>% filter(ProductType=="Netbook" & reseña=="x2StarReviews")
+ggplot(df.scatter2EstNetbook, aes(x=Estrellas, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto de las reseñas \n en el volumen de venta de netbooks",
+                  subtitle = "Variable 2 estrellas",
        caption = "Fuente: Elaboración propia")+
   ylab("Volumen de ventas")+
   xlab("Número de reseñas")+
   theme_ipsum()
 ```
 
-```{r}
-
-df.scatterLaptop = df.scatter %>% filter(ProductType=="Laptop")
-ggplot(df.scatterLaptop, aes(x=Estrellas, y=Volume, colour=reseña,label =ProductNum)) +
-  geom_point() +
-  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
-  geom_text_repel()+
-    scale_x_continuous(breaks = seq(0,60,by=5))+
-  scale_y_continuous(breaks = seq(0,300,by=20))+
-    labs(title = "Impacto de las reseñas en el volumen de venta de Portátiles",
-       caption = "Fuente: Elaboración propia")+
-  ylab("Volumen de ventas")+
-  xlab("Número de reseñas")+
-  theme_ipsum()
-```
 
 
-```{r}
+
+Al haber unicamente dos modelos, vemos que la recta se ajusta a estos puntos.
+
+
+
+```{r include=FALSE}
 df.scatterNet = df.scatter %>% filter(ProductType=="Netbook")
 ggplot(df.scatterNet, aes(x=Estrellas, y=Volume, colour=reseña,label=ProductNum)) +
   geom_point() +
@@ -1130,7 +1182,40 @@ ggplot(df.scatterNet, aes(x=Estrellas, y=Volume, colour=reseña,label=ProductNum
   theme_ipsum()
 ```
 
-```{r}
+```{r ,out.width="50%", out.height="50%"}
+# , fig.width='200px' , fig.height='200px' 
+df.scatter4EstSmartp = df.scatter %>% filter(ProductType=="Smartphone" & reseña=="x4StarReviews")
+ggplot(df.scatter4EstSmartp, aes(x=Estrellas, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,30,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto de las reseñas \n en el volumen de venta de Smartphones",
+                  subtitle = "Variable 4 estrellas",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()
+
+
+df.scatter2EstSmartp= df.scatter %>% filter(ProductType=="Smartphone" & reseña=="x2StarReviews")
+ggplot(df.scatter2EstSmartp, aes(x=Estrellas, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto de las reseñas \n en el volumen de venta de smartphones",
+                  subtitle = "Variable 2 estrellas",
+       caption = "Fuente: Elaboración propia")+
+  ylab("Volumen de ventas")+
+  xlab("Número de reseñas")+
+  theme_ipsum()
+```
+
+
+```{r include=FALSE}
 df.scatterSmt = df.scatter %>% filter(ProductType=="Smartphone")
 ggplot(df.scatterSmt, aes(x=Estrellas, y=Volume, colour=reseña,label=ProductNum)) +
   geom_point() +
@@ -1237,7 +1322,8 @@ scatter2 = DatosProdExistentes %>%
 ```
 
 
-```{r}
+```{r ,out.width="50%", out.height="50%"}
+
 df.scatter2 = data.frame(
   reseña = rep(c("PositiveServiceReview","NegativeServiceReview"),each=13),
   Valoracion = c(scatter2$PositiveServiceReview,
@@ -1247,22 +1333,43 @@ df.scatter2 = data.frame(
   Volume = rep(scatter2$Volume,2)
 )
 
-ggplot(df.scatter2, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
+df.Positive =df.scatter2 %>% filter(reseña=="PositiveServiceReview")
+df.Negative =df.scatter2 %>% filter(reseña=="NegativeServiceReview")
+
+
+
+ggplot(df.Positive, aes(x=Valoracion, y=Volume,label=ProductNum)) +
   geom_point() +
   geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
   geom_text_repel(max.overlaps = Inf)+
   scale_x_continuous(breaks = seq(0,25,by=1))+
-  scale_y_continuous(breaks = seq(0,1500,by=100))+
-    labs(title = "Impacto de la evaluación del servicio en el volumen de ventas",
+  scale_y_continuous(breaks = seq(0,1500,by=150))+
+    labs(title = "Impacto de la evaluación del servicio \n en el volumen de ventas",
+         subtitle = "Variable: Reseña positiva por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+
+
+
+ggplot(df.Negative, aes(x=Valoracion, y=Volume,label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+  geom_text_repel(max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,25,by=1))+
+  scale_y_continuous(breaks = seq(0,1500,by=150))+
+    labs(title = "Impacto de la evaluación del servicio \n en el volumen de ventas",
+         subtitle = "Variable: Reseña negativa por el servicio",
        caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
   ylab("Volumen histórico de ventas")+
   xlab("Número de valoraciones recibidas")+
   theme_ipsum()
 ```
 
-Vemos que la mayoría de puntos se sitúan en torno a la recta roja y dentro del intervalo de confianza que vemos azul. 
+Vemos que la mayoría de puntos se sitúan en torno a la recta roja y dentro del intervalo de confianza que vemos verde. 
 
-Cada punto representa un producto específico, identificado por un número. Cada número puede estar repetido dos veces debido a que un cliente ha podido considerar que ha recibido un buen servicio y otro un mal servicio, ambos refiriendose al mismo producto concreto.
+Cada punto representa un producto específico, identificado por un número.
 
 Los puntos "peligrosos" serían aquellos que referentes a reseñas negativas (rojos) pero con un gran volumen de ventas, serían puntos rojos que estarían situados en la zona superior derecha de los gráficos.
 
@@ -1271,7 +1378,44 @@ Con respecto a este gráfico, el producto 197 ha recibido 22 reseñas de servici
 No tenemos puntos con un grán número de reseñas negativas y con un gran volumen de ventas. El producto 105 ha sido el que mayor número de reseñas por un mal servicio ha recibido, en concreto 20 valoraciones negarivas y únicamente 7 reseñas positivas. El volumen de ventas de este producto ha sido de casi 200 unidades.
 
 
-```{r}
+```{r ,out.width="50%", out.height="50%"}
+
+df.scatterPosPC = df.Positive %>% filter(ProductType=="PC" & reseña=="PositiveServiceReview")
+
+ggplot(df.scatterPosPC, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de PCs",
+         subtitle = "Variable: Reseñas positivas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+
+
+df.scatterNegPC = df.Negative %>% filter(ProductType=="PC" & reseña=="NegativeServiceReview")
+ggplot(df.scatterNegPC, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de PCs",
+          subtitle = "Variable: Reseñas negativas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
+
+
+
+
+
+```{r include=FALSE}
 df.scatter2PC = df.scatter2 %>% filter(ProductType=="PC")
 ggplot(df.scatter2PC, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
   geom_point() +
@@ -1286,7 +1430,42 @@ ggplot(df.scatter2PC, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNu
   theme_ipsum()
 ```
 
-```{r}
+```{r ,out.width="50%", out.height="50%"}
+
+df.scatterPosPort = df.Positive %>% filter(ProductType=="Laptop" & reseña=="PositiveServiceReview")
+
+ggplot(df.scatterPosPort, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de Portátiles",
+         subtitle = "Variable: Reseñas positivas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+
+
+df.scatterNegPort = df.Negative %>% filter(ProductType=="Laptop" & reseña=="NegativeServiceReview")
+ggplot(df.scatterNegPort, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de Portátiles",
+          subtitle = "Variable: Reseñas negativas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
+
+
+
+```{r include=FALSE}
 df.scatter2Laptop = df.scatter2 %>% filter(ProductType=="Laptop")
 ggplot(df.scatter2Laptop, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
   geom_point() +
@@ -1302,7 +1481,42 @@ ggplot(df.scatter2Laptop, aes(x=Valoracion, y=Volume, colour=reseña,label=Produ
 ```
 
 
-```{r}
+```{r ,out.width="50%", out.height="50%"}
+
+df.scatterPosNetb = df.Positive %>% filter(ProductType=="Netbook" & reseña=="PositiveServiceReview")
+
+ggplot(df.scatterPosNetb, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de Netbooks",
+         subtitle = "Variable: Reseñas positivas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+
+
+df.scatterNegNetb = df.Negative %>% filter(ProductType=="Netbook" & reseña=="NegativeServiceReview")
+ggplot(df.scatterNegNetb, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,3,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de netbooks",
+          subtitle = "Variable: Reseñas negativas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
+
+
+
+```{r include=FALSE}
 df.scatter2Net = df.scatter2 %>% filter(ProductType=="Netbook")
 ggplot(df.scatter2Net, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
   geom_point() +
@@ -1317,7 +1531,42 @@ ggplot(df.scatter2Net, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductN
   theme_ipsum()
 ```
 
-```{r}
+```{r ,out.width="50%", out.height="50%"}
+
+df.scatterPosSmart= df.Positive %>% filter(ProductType=="Smartphone" & reseña=="PositiveServiceReview")
+
+ggplot(df.scatterPosSmart, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,22,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de Smartphones",
+         subtitle = "Variable: Reseñas positivas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+
+
+df.scatterNegSmart = df.Negative %>% filter(ProductType=="Smartphone" & reseña=="NegativeServiceReview")
+ggplot(df.scatterNegSmart, aes(x=Valoracion, y=Volume, label=ProductNum)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) +
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+  scale_x_continuous(breaks = seq(0,3,by=1))+
+  #scale_y_continuous(breaks = seq(0,150,by=10))+
+    labs(title = "Impacto del servicio en el volumen de ventas de smartphones",
+          subtitle = "Variable: Reseñas negativas por el servicio",
+       caption = "Fuente: Elaboración propia con datos del histórico de ventas")+
+  ylab("Volumen histórico de ventas")+
+  xlab("Número de valoraciones recibidas")+
+  theme_ipsum()
+```
+
+
+
+```{r include=FALSE}
 df.scatter2Smt = df.scatter2 %>% filter(ProductType=="Smartphone")
 ggplot(df.scatter2Smt, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
   geom_point() +
@@ -1335,7 +1584,8 @@ ggplot(df.scatter2Smt, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductN
 
 
 
-Falta comentarlas
+La pendiente es mayor en la recta de regresión de la variable reseñas positivas por el servicio.
+
 
 
 
@@ -1357,10 +1607,6 @@ Las variables que utilizaremos para predecir el volumen de ventas en el modelo d
 
 ```{r}
 PredictoresRegresion<- c(
- "Productos: Juegos para la consola",
-"Productos: Ordenadores portátiles",
-"Producto: Impresoras",
-"Producto: PC",
 "Price",
 "x4StarReviews",
 "x2StarReviews",
@@ -1373,7 +1619,6 @@ PredictoresRegresion<- c(
 "ProductHeight" , 
 "ProfitMargin" 
 ) 
-
 PredictoresRegresion%>% 
   kable(booktabs=TRUE,col.names = "Variables predictoras", caption="Variables para predecir el volumen de ventas con un modelo de regresión") %>% 
   kable_styling(latex_options = "striped") 
@@ -1388,25 +1633,12 @@ Límite de correlación: 20%
 Para el resto de modelos, introduciremos todas las variables disponibles en el el conjunto de datos, que son:
 
 ```{r}
-Predictores<- c(
- "ProductType.Accessories"     , "ProductType.Display"         ,
- "ProductType.ExtendedWarranty", "ProductType.GameConsole"     ,
- "ProductType.Laptop"          , "ProductType.Netbook"         ,
- "ProductType.PC"              , "ProductType.Printer"         ,
- "ProductType.PrinterSupplies" , "ProductType.Smartphone"      ,
- "ProductType.Software"        , "ProductType.Tablet"          ,
- "ProductNum"                  , "Price"                       ,
- "x4StarReviews"               , "x2StarReviews"               ,
- "PositiveServiceReview"       , "NegativeServiceReview"       ,
- "Recommendproduct"            , "ShippingWeight"              ,
- "ProductDepth"                , "ProductWidth"                ,
- "ProductHeight"               , "ProfitMargin" 
+Predictores<- c( "Price"                ,"x4StarReviews"               , "x2StarReviews"           ,"PositiveServiceReview"  , "NegativeServiceReview"       ,"Recommendproduct"    , "ShippingWeight"           ,"ProductDepth"                , "ProductWidth"   ,"ProductHeight"                   , "ProfitMargin" 
 ) 
 
 Predictores%>% 
   kable(booktabs=TRUE,col.names = "Variables predictoras", caption="Variables para predecir el volumen de ventas") %>% 
   kable_styling(latex_options = "striped") 
-
 ```
 
 
@@ -1418,66 +1650,87 @@ Tomaremos una partición de 80% 20% para datos de entrenamiento y testeo.
 No dividiremos el conjunto de datos de entrenamiento en validación, ya que nuestros datos tienen una gran limitación: tenemos muy pocos registros, en concreto `r nrow(DatosProdExistentes2)` productos. Por lo que construir un modelo y entrenarlo con estos datos, además haciendo una partición para validación, nos llevaría a tener métricas muy pobres.
 
 ```{r - splitting ,echo=TRUE}
-DatosRegresion <- readyData2[,c(4,5,7,8,14,15,16,17,18,19,20,21,22,23,24,25)]
-DatosModelar <- readyData2
+DatosRegresion <- readyData2[,c(13,14,15,16,17,
+                                18,19,20,21,22,23,24,25)]
+
 set.seed(17)
 indicesEntrenamiento <- 
   createDataPartition(DatosRegresion$Volume,
                       p = .8, list = FALSE)
-DatosEntreamientoR <- DatosRegresion[indicesEntrenamiento,]
-DatosTesteoR <-DatosRegresion[-indicesEntrenamiento,]
+DatosEntreamientoR <- 
+  DatosRegresion[indicesEntrenamiento,-1]
 
+DatosTesteoR <-
+  DatosRegresion[-indicesEntrenamiento,-1]
 
+ProductNumREntrenamiento <- DatosRegresion[indicesEntrenamiento,1]
+ProductNumRTesteo <- DatosRegresion[-indicesEntrenamiento,1]
 
+DatosModelar <- readyData2[,-c(1:12)]
 set.seed(17)
 indicesEntrenamiento <- 
   createDataPartition(DatosModelar$Volume,
                       p = .8, list = FALSE)
-DatosEntreamiento <- DatosModelar[indicesEntrenamiento,]
-DatosTesteo <-DatosModelar[-indicesEntrenamiento,]
+DatosEntreamiento <- 
+  DatosModelar[indicesEntrenamiento,-1]
+
+DatosTesteo <-
+  DatosModelar[-indicesEntrenamiento,-1]
+
+ProductNumEntrenamiento <- DatosModelar[indicesEntrenamiento,1]
+ProductNumTesteo <-        DatosModelar[-indicesEntrenamiento,1]
 ```
+
+
+
+
 
 
 ```{r}
-cat("El número de filas de los datos de entrenamiento es:", nrow(DatosEntreamientoR), "\n")
+cat("El número de registros de los datos de entrenamiento es:", nrow(DatosEntreamientoR), "\n")
 
-cat("El número de filas de los datos de testeo es:", nrow(DatosTesteoR))
+cat("El número de registros de los datos de testeo es:", nrow(DatosTesteoR))
 ```
 
 
-## Prueba de algoritmos, hiperparámetros y estrategias de optimización para predecir la marca preferida
+## Prueba de algoritmos, hiperparámetros y estrategias de optimización para predecir el volumen de ventas
 
-Detección de los mejores algoritmos como árboles de regresión o modelos lineales:
+Detección de los mejores algoritmos para predecir la variable numérica **volumen de ventas**, emplearemos algoritmos como árboles de regresión o modelos lineales:
 
 En primer lugar, para la replicación de los resultados, usamos la función trainControl.
 
 
 ```{r echo=TRUE}
 # Para todos los modelos
-fitControl <- trainControl(method = "repeatedcv", number = 5, repeats = 3,
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 5,
+                           repeats = 3,
                           # verboseIter =TRUE 
 )
 ```
 
 Debido a la longitud de nuestros datos, únicamente 64 filas en los datos de entrenamiento, no podemos hacer validación cruzada con 10 folds, por lo que dividimos en 5 grupos y lo repetiremos 3 veces. 
 
-De cara a utilizar algoritmos de regresión, haremos uso de la instrucción preProcess, de la función train, para escalar nuestras variables
+De cara a utilizar algoritmos de regresión, haremos uso de la instrucción preProcess, de la función train, para escalar nuestras variables y que estén todas en la misma escala, de cara a obtener mejores métricas y que los modelo minimicen el error al predecir.
 
-Vamos con los modelos para predecir el volumen de ventas:
+Vamos con los modelos para predecir el volumen de ventas
 
 
 ### Algoritmo 1: Regresión lineal
 
 Utilizaremos el algoritmo _lm_ Se trata de un algoritmo de **regresión**, que genera un modelo lineal.
+
 Aplicaremos el algoritmo a todas las columnas del dataset de entrenamiento, a excepción de la última columna, que es la que queremos predecir (volumen de ventas)
 
 
 #### Hiperparametros del algoritmo 
 
 - Número de intentos (tune length): 5
-- Validación cruzaza con 10 grupos y una repetición
+- Validación cruzaza con 10 grupos y tres repeticiones
 
 #### Modelado
+
+
 
 ```{r echo=TRUE}
 set.seed(17)
@@ -1513,22 +1766,22 @@ theme_minimal()
 
 #### Resultados
 
-Nota: He probado introduciendo el resto de variables y el modelo me daba peor ajuste de $R^2=0.82$
+Nota: He probado introduciendo el resto de variables y el modelo me daba peor ajuste de $R^2=0.8319$
 
 Con estos hiperparámetros obtenemos las siguientes métricas:
 
-- $R^2=0.8319$, es decir, las variables dependientes consiguen explicar un 83,19% de la variabilidad del volumen de ventas. No es un mal ajuste
+- $R^2_{ajustado}=0.7905$, es decir, las variables dependientes consiguen explicar un 79,05% de la variabilidad del volumen de ventas. No es un mal ajuste
 - Vemos que las variables que podemos considerar significativas a la hora de predecir las ventas de los productos son:
-  - Productos de tipo consola
   - Variable 4 estrellas
   - Reseña positiva del servicio
   - Medidad de profundidad del producto
   - Altura del producto
-  - Nota: las variables productos tipo PC y profit margin están al límite y también pordíamos considerarlas significativas
+  - Término independiente
+  - Nota: la variable profit margin están al límite y también podríamos considerarlas significativas
   
 
 
-Hay varias variables bastante importantes de cara a predecir el volumen de ventas (reseñas positivas, profundidad del producto, 4 estrellas, juegos de tipo consola, altura del producto,...)
+En este modelo, la mayoría de variables introducidas influyen fuertemente en la predicción del volumen de ventas. En concreto, las 3 variables que más influyen a la hora de predecir el volumen de ventas son: Reseñas positivas por el servicio, 4 estrellas y medida de profundidad del producto. El resto de variables, salvo la variable 2 estrellas (0,39%) y el precio (8,13%), influyen en el modelo con un porcentaje no muy bajo (mayor al 15%)
 
 
 
@@ -1543,7 +1796,7 @@ Algoritmo de regresión _svmLinear_
 
 #### Hiperparametros
 
-- Validación cruzaza con 5 grupos y 3 repetición
+- Validación cruzada con 5 grupos y 3 repeticiones
 - Parámetro c: usaremos una malla de valores entre 1 y 3 
 
 
@@ -1582,21 +1835,43 @@ labs(title = "Importancia de las variables",subtitle = "Support Vector Machine",
 theme_minimal()
 ```
 
-Las variables más importantes a la hora de predecir el volumen de ventas es la variable reseñas positivas por el servicio, seguido de 4 estrellas, reseñas negativas y 2 estrellas. En definitiva son todas variables que refieren a la valoración que dan los clientes.
+
+Las variables más importantes a la hora de predecir el volumen de ventas, con más de un 50% de importancia en el modelo son las siguientes variables: reseñas positivas por el servicio, seguido de 4 estrellas, reseñas negativas y 2 estrellas. En definitiva son todas variables que refieren a la valoración que dan los clientes.
 
 
 
 #### Resultados
+
+El mejor modelo corresponde a aquel en el que el parámetro C es:
 
 ```{r}
 modeloSVM$bestTune
 ```
 
 
-El mejor modelo es para un valor de C=2.5789, que nos proporciona las siguientes métricas:
+El mejor modelo es para un valor de C=1.631579, que nos proporciona las siguientes métricas:
 
-- $R^2=0.71709$
-- Error cuadrático medio (RMSE):  356.4625
+
+```{r}
+modeloSVM$results[7,]
+```
+
+
+- $R^2=0.7457163$
+- Error cuadrático medio (RMSE):  291.9401
+
+#### Variabilidad del modelo en la validación cruzada
+
+Esto es un aspecto importante, ya que si para cada modelo en la validación cruzada obtengo métricas muy distintas y por tanto, gran variabilidad, el modelo no será fiable y con ello, las predicciones tampoco.
+
+```{r}
+modeloSVM$resample
+```
+
+Observamos que en la primera iteracción el valor de $R^2$ es de 0.818, que es un buen valor (consigo obtenener un 80% de la variabilidad total del modelo), sin embargo, en la segunda iteracción de la primera repetición el valor de $R^2=0,35$, un valor bastante bajo. Hay mucha variabilidad.
+
+Tambien ocurre lo mismo con el error cuadrático medio y con el error medio absoluto, existe gran variabilidad. No es un modelo fiable.
+
 
 
 
@@ -1608,7 +1883,7 @@ El mejor modelo es para un valor de C=2.5789, que nos proporciona las siguientes
 
 
 - Validación cruzaza con 5 grupos y 3 repeticiones
-- diferentes valores de mtry
+- Diferentes valores de mtry 
 - Número de intentos (tune length): 3
 
 #### Modelado 
@@ -1627,6 +1902,9 @@ ModeloRandomForestR
 ```
 
 
+
+
+
 ```{r}
 ImpRFR<-varImp(ModeloRandomForestR)
 ImpRFR
@@ -1641,7 +1919,7 @@ labs(title = "Importancia de las variables",subtitle = "Modelo Random Forest",ca
 theme_minimal()
 ```
 
-La variable más importante a la hora de redecir el volumen de ventas es la variable _reseña positiva del servicio_. La variable 4 estrellas tambien tiene algo de importania en el modelo. 
+La variable más importante a la hora de redecir el volumen de ventas es la variable _reseña positiva del servicio_. Del resto de variables, únicamente la variable 4 estrellas participa con un 4%.
 
 
 
@@ -1661,7 +1939,7 @@ ggplot(ModeloRandomForestR)+
 ```{r}
 ModeloRandomForestR$bestTune
 ```
-Hiperparámetros del mejor modelo: mtry=24
+Hiperparámetros del mejor modelo: mtry=11
 
 Los resultados son, con este parámetro:
 
@@ -1671,8 +1949,18 @@ ModeloRandomForestR$results[5,]
 ```
 
 
-- Valor de $R^2=0.9026977$
-- Error cuadrático medio: 166.4312
+- Valor de $R^2=0.9132643	$
+- Error cuadrático medio: 156.4108
+
+
+#### Variabilidad del modelo en la validación cruzada
+```{r}
+ModeloRandomForestR$resample
+```
+Aqú vemos como la variabilidad en las métricas es bastante menor y por tanto, el modelo será mucho más fiable de cara a predecir.
+
+Los valores de $R^2$ varían entre 0.82 y 0.96, llegando a alcanzar incluso un valor de 0.99.
+
 
 
 
@@ -1681,104 +1969,166 @@ ModeloRandomForestR$results[5,]
 
 ### Algoritmo 4: Gradient Boosting (Automathic Grid)
 
-#### Hiperparametros
+Este algoritmo no es adecuado con nuestros datos.
 
-Los hiperparámetros admisibles son:
-
-- Número de árboles (iteraciones)
-- Complejidad del árbol (interaction.depth)
-- Learning rate: shrinkage
-- Número mínimo de muestras de conjuntos de entrenamiento en un nodo para comenzar a dividir (n.minobsinnode)
-
-Nosotros crearemos una malla con los siguientes hiperparámetros, para ver cuáles son aquellos que nos dan un modelo óptimo
-
-- Max Depth: 1,2,3,4,5
-- Número de árboles: 50 100 150 200 250
-- Learning rate: 0.1
-- Número de muestras: 7
+### Prueba de los modelos en los datos de testeo y elección del modelo final
 
 
+Ahora realizaremos predicciones del volumen de ventas de los distintos productos con estos modelos sobre los datos de testeo , para ver con cuales obtengo mejores métricas, obteniendo así un modelo óptimo para realizar predicicones del volumen de ventas de los nuevos productos.
 
-#### Modelado 
+#### Algoritmo 1: Regresión lineal
 
-```{r message=FALSE}
+
+Vamos a predecir el volumen de ventas de los diferentes productos con el modelo de regresión lineal creado antes.
+
+##### Predicciones y evaluación del rendimiento en datos de validación
+
+```{r}
+PredRL<-predict(modeloRL, newdata = DatosTesteoR)
+# DatosTesteoR$Volume
+
+
+cbind.data.frame(ProductNumRTesteo,PredRL,DatosTesteoR$Volume) %>% 
+  kable(booktabs=TRUE,caption = "Modelo de Regresión Lineal", col.names = c("Producto","Predicción","Valor real")) %>%
+  kable_styling(latex_options = "striped")
+```
+Valores de ventas negativas...
+
+```{r}
+plot(DatosTesteoR$Volume,PredRL, 
+     main = "Predicciones VS Valor real \n Modelo de regresión lineal",
+     xlab="Producto", ylab="Volumen de ventas", yaxt ="n",xaxt = "n",
+     xlim = c(0,200), ylim=c(0,2500))
+axis(1, at=seq(0, 200, 10))
+axis(2, at=seq(0, 3000, 100))
+par(new=T)
+plot(DatosTesteoR$Volume,DatosTesteo$Volume,
+     col="red",xlab = "", ylab = "",yaxt ="n",xaxt = "n")
+legend(1, 95, legend=c("Line 1", "Line 2"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
+```
+
+
+
+
+#### Algoritmo 2: Suport Vector Machine with Linear Kernel
+
+Algoritmo de regresión _svmLinear_
+
+
+
+Los hiperparámetros del mejor modelo
+
+```{r}
+modeloSVM$bestTune
+```
+
+
+El mejor modelo es para un valor de C=1.631579. Vamos a aplicar el algoritmo con este valor para los datos de Testeo
+
+
+
+```{r}
 # Malla para hiperparámetros
-# gbmGrid <-  expand.grid(interaction.depth = c(1,2,3,4,5,9), 
-#                         n.trees = seq(50,250,by=50), 
-#                         shrinkage = 0.1,
-#                         n.minobsinnode = 7)
-# 
-# 
-# set.seed(17)
-# garbage <- capture.output(
-# ModeloGradientBoostingR <- train(Volume~., 
-#                 data = DatosEntreamiento, 
-#                 preprocess=c("center","scale"),
-#                 method = "gbm", 
-#                 trControl=fitControl, 
-#                 # tuneLength = 5
-#                 tuneGrid = gbmGrid
-#                 )
-# )
-# ModeloGradientBoostingR
+SVMGridBEST <-  expand.grid(C = 1.631579	)
+set.seed(17)
+BESTmodeloSVM <- train(Volume~., 
+                data = DatosEntreamiento, 
+                method = "svmLinear", 
+                trControl=fitControl, 
+                preProcess=c("center","scale"),
+                tuneGrid = SVMGridBEST)
+BESTmodeloSVM
 ```
 
 
 ```{r}
-# ImpGB <-varImp(ModeloGradientBoostingR,numTrees=)
-# ImpGB
-# 
-# 
-# ggplot(ImpGB ) +
-# geom_point( color="red", size=4, alpha=0.6)+
-#   scale_y_continuous(breaks = seq(0,100,by=10))+
-# xlab('Variable')+
-# ylab('Importancia')+
-# labs(title = "Importancia de las variables",subtitle = "Modelo Gradient # Boosting",caption = "Fuente: elaboración propia")+
-# theme_light() 
-# 
-# # ggplot(ImpGB)
-```
-
-
-En este modelo, las variables más importantes, 
-
-#### Gráfica del remuestreo
-
-Para examinar la relación entre la estimación del rendimiento del modelo y los parámetros de ajuste.
-
-examinar la relación entre las estimaciones de rendimiento y los parámetros de ajuste
-
-```{r }
-# trellis.par.set(caretTheme())
-# plot(ModeloGradientBoostingR,main="Precisión del modelo según hiperparámetros  \n # Gradient Boosting Automatic Grid)")
-
-  
-#ggplot(GradientBoostingR)+
-#labs(title = "Precisión del modelo en función del valor de k")
+BESTmodeloSVM$resample # comentar y mirar a fondo con el que me quede
 ```
 
 
 
 
-#### Resultados
 
- 
-Las mejores métricas se obtienen con los siguientes hiperparámetros:
+```{r}
+BESTmodeloSVM$results
+```
 
-- Número de árboles: 
-- Max Depth: 
-- Learning rate: 
-- n.minobsinnode = 
-
-
-Métricas obtenidas:
-
-- $R^2$: 
-- Error cuadrático medio:
+- $R^2=0.7457143$
+- Error cuadrático medio (RMSE):  291.943
 
 
 
+##### Predicciones y evaluación del rendimiento en datos de validación
+
+```{r}
+PredSVM<-predict(BESTmodeloSVM, newdata = DatosTesteo)
+# DatosTesteoR$Volume
+
+
+cbind.data.frame(ProductNumTesteo,PredSVM,DatosTesteo$Volume,abs(PredSVM-DatosTesteo$Volume)) %>% 
+  kable(booktabs=TRUE,caption = "Modelo Support Vector Machine", col.names = c("Número del producto","Predicción","Valor real","Error absoluto en la predicción")) %>%
+  kable_styling(latex_options = "striped")
+```
+
+
+#### Algoritmo 3: Random Forest Regression
+
+Hiperparámetros del mejor modelo:
+
+
+```{r}
+ModeloRandomForestR$bestTune
+```
+
+Hiperparámetros del mejor modelo: mtry=11
+
+
+
+
+
+
+```{r}
+RFRBestGridTest <-  expand.grid(mtry=11)
+set.seed(17)
+BestModeloRandomForestR <- train(Volume~., 
+                data = DatosTesteo, 
+                method = "rf", 
+                trControl=fitControl, 
+                preProcess=c("center","scale"),
+                tuneGrid= RFRBestGridTest)
+
+#training results
+BestModeloRandomForestR
+```
+```{r}
+BestModeloRandomForestR$resample
+```
+
+
+
+- $R^2=0.8536408$
+- Error cuadrático medio (RMSE):  528.1523
+
+
+
+##### Predicciones y evaluación del rendimiento en datos de validación
+
+```{r}
+PredRFR<-predict(BestModeloRandomForestR, newdata = DatosTesteo)
+# DatosTesteoR$Volume
+
+
+cbind.data.frame(ProductNumTesteo,PredRFR,DatosTesteo$Volume, abs(DatosTesteo$Volume-PredRFR)) %>% 
+  kable(booktabs=TRUE,caption = "Modelo Random Forest Regressor", col.names = c("Número del producto","Predicción","Valor real","Error absoluto en la predicción")) %>%
+  kable_styling(latex_options = "striped")
+```
+
+
+
+
+
+#### Comparación de las métricas en los cuatro modelos
 
 
 
@@ -1787,7 +2137,12 @@ Métricas obtenidas:
 
 
 
-## Test del modelo final Gradient Boosting
+
+
+
+
+
+## Test del modelo final 
 
 ### Evaluación del modelo final y testeo
 
@@ -1800,12 +2155,11 @@ Conclusiones:
 
 
 
-
-
-
 ```{r}
 # var imp con repre del mejor
 ```
+
+
 
 
 
