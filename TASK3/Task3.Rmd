@@ -48,9 +48,9 @@ library(caret)
 
 El equipo de ventas de Blackwell Electronics solicita que analicemos los datos correspondientes a las ventas de distintos productos con el **objetivo** de:
 
-- Entender como varían las ventas en función del tipo de producto
+- Entender como varía el volumen de ventas en función del tipo de producto
 - Predecir las ventas de cuatro tipos de productos diferentes: PC, portátiles, netbooks y teléfonos inteligentes
-- Evaluar el impacto que tienen las revisiones de los servicios y las reseñas de los clientes en las ventas de diferentes tipos de productos
+- Evaluar el impacto que tienen las revisiones de los servicios y las reseñas de los clientes en el volumen de ventas de diferentes tipos de productos
 
 
 Para ello, analizaremos los datos correspondientes al histórico de ventas para hacer predicciones del volumen de ventas de los nuevos productos. 
@@ -71,9 +71,9 @@ Para ello, analizaremos los datos correspondientes al histórico de ventas para 
 
 ## Procedimiento para cumplir mis objetivos
 
-- Descripción de datos, pre-procesado, data cleaning, análisis exploratorio y feature engineering 
-- Modelado a través de algoritmos de regresión , como por ejemplo: regresión lineal, support vector machine, random forest y gradient boosting
-- Decisión del método que mejor predice el volumen de ventas de los diferentes productos
+- Descripción de datos, pre-procesado, limpieza de los datos, análisis exploratorio y feature engineering 
+- Modelado a través de algoritmos de regresión , como por ejemplo: regresión lineal, support vector machine y random forest 
+- Decisión del algoritmo que nos proporciona el mejor modelo de cara a predecir el volumen de ventas de los diferentes productos
 - Una vez tengamos el modelo final, predecir las ventas de los cuatro tipos de productos informáticos
 
 
@@ -86,7 +86,7 @@ Para ello, analizaremos los datos correspondientes al histórico de ventas para 
     -   **DatosProdExistentes**: Histórico de ventas con los 80 productos existentes, sus características y valoraciones
     -   **DatosProdNuevos**: Dataset con 24 nuevos productos, sus características y valoraciones
     
-Aquí encontramos la primera limitación de los datos, tenemos muy pocos registros y de cara a modelar nuestra variable _volumen de ventas_ esto va a suponer un problema para dividir en datos de entrenamiento y testeo, pero es algo que desarrolaremos en el apartado de modelado.
+Aquí encontramos la primera limitación de los datos, tenemos muy pocos registros y de cara a modelar nuestra variable _volumen de ventas_ esto va a suponer un problema para dividir en datos de entrenamiento y testeo, pero es algo que desarrollaremos en el apartado de modelado.
 
 ```{r}
 DatosProdExistentes<-read.csv(file="DATOS/existingproductattributes2017.csv",header = TRUE,sep = ",",dec ="." )
@@ -126,11 +126,11 @@ En ambos conjuntos de datos encontramos 18 variables :
 
 -   **ProductNum**: Identificador del producto, es único para cada producto (Variable numérica)
 
--   **XiStarReviews**: cinco variables correspondientes a las puntuaciones (i=1-5) al producto  (Variable numérica, que indica el número de veces que se le ha dado esa puntiación)
+-   **XiStarReviews**: cinco variables correspondientes a la calificación (de 1 a 5) que le dan los clientes al producto   (Variable numérica, que indica el número de veces que se le ha dado esa puntiación) Estas variables son: 1 estrella, 2 estrellas, 3 estrellas,  4 estrellas, y 5 estrellas
 
--   **PositiveServiceReview**: Número de veces que se ha dado una reseña positiva por el servicio. (numérica)
--   **NegativeServiceReview**: Número de veces que se ha dado una reseña negativa por el servicio. (numérica)
--   **RecommendProduct**: Puntuación entre 0 y 1 en función si recomendaría o no el producto (variable numérica)
+-   **PositiveServiceReview**: Número de veces que se ha dado una reseña positiva por el servicio prestado. (numérica)
+-   **NegativeServiceReview**: Número de veces que se ha dado una reseña negativa por el servicio prestado. (numérica)
+-   **RecommendProduct**: Puntuación entre 0 y 1 que indica si se recomendaría o no el producto (variable numérica)
 -   **Best Seller Rank**: Puesto que ocupa en un ránking de productos  (variable numérica entera)
 -   **Shipping Weigth**: Peso del envío (variable numérica)
 -   **Product Depth**: Dimensiones de la profundidad del producto (variable numérica)
@@ -151,9 +151,21 @@ En ambos conjuntos de datos encontramos 18 variables :
 
 En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos (incompletos) en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
 
+En primer lugar vamos a mostrar los datos en forma de cadena para ver si tenemos todas las variables en la forma correspondiente, por ejemplo: variables numéricas como números, categóricas como factor,...
+
 ```{r}
 str(DatosProdExistentes)
 str(DatosProdNuevos)
+```
+
+
+Todos los datos están en el formato correcto, por lo que por el momento no debemos hacer ningún cambio ni recodificación de ninguna variable.
+
+Mostramos ahora un resumen de los datos, para ver que no existen incongruencias como precios o volúmenes de ventas negativos, valores faltantes o cualquier otro error que pudiera existir en los datos.
+
+
+
+```{r}
 summary(DatosProdExistentes)
 summary(DatosProdNuevos)
 ```
@@ -169,30 +181,61 @@ Mostramos a continuación, las instancias duplicadas en nuestros datasets:
 DatosProdExistentes[duplicated(DatosProdExistentes)==TRUE,]
 ```
 
+
+
 -   Duplicados en los datos de testeo:
 
 ```{r}
 DatosProdNuevos[duplicated(DatosProdNuevos)==TRUE,]
 ```
 
-Por tanto, en nuestros conjuntos de datos, no existen instancias duplicadas.
+En la última fila de las salidas vemos _0 rows_, por tanto, en nuestros conjuntos de datos, no existen instancias duplicadas.
 
 
 
+## Transformación de variables
 
-## Datos ficticios (dummy)
+### Datos ficticios (dummy)
 
 Tenemos que transformar la variable product type de factor a variable binaria de (0 y 1)
 
+La variable product type es un factor con los siguientes niveles:
 
 ```{r}
+levels(DatosProdExistentes$ProductType) %>% kable(booktabs=TRUE, col.names  = "Tipos de producto") %>% kable_styling(latex_options = "striped")
+```
+
+Vamos a aplicar la función dummyVars para obtener 12 nuevas variables binarias de tipo (0,1)
+
+
+```{r echo=TRUE}
 # dummy of the data
 newDataFrame <- dummyVars(" ~ .", data = DatosProdExistentes)
 readyData <- data.frame(predict(newDataFrame, newdata = DatosProdExistentes))
 
-str(readyData)
+str(readyData[,1:12])
 
 ```
+
+De la variable product type hemos obtenido 12 variables diferentes, una por cada tipo de producto. Encontramos un 1 si ese artículo pertenece al tipo de producto correspondiente y un 0 en caso contrario.
+
+Al trabajar con este tipo de variables, tenemos gran cantidad de 0, y por tanto, esto puede suponer problemas de cara a realizar modelos de predicción porque la varianza de éstas variables será muy próxima a 0. Trataremos esta limitación en el apartado de análisis exploratorio.
+
+
+
+
+### Factorización de las variables
+
+No es necesario
+
+### Normalización de variables
+
+No necesitamos normalizar las variables para que estén todas en la misma escala, ya la mayoría de variables son ordinales, y las que no lo son (peso, altura del producto,...) se encuentran todas en la misma escala.
+
+```{r}
+#scale(x,center = TRUE,scale = TRUE)
+```
+
 
 
 
@@ -211,11 +254,10 @@ Vamos a ver de que productos se trata:
 
 
 ```{r}
-DatosProdExistentes %>% 
-  filter(
-   # is.na(BestSellersRank )
-  ) %>% kable(booktabs=TRUE) %>% 
+DatosProdExistentes[is.na(DatosProdExistentes$BestSellersRank),] %>% 
+  kable(booktabs=TRUE) %>% 
   kable_styling(latex_options = "striped")
+
 ```
 
 
@@ -224,8 +266,8 @@ Las opciones son las siguientes: imputar el valor que ocuparía en el ranking, e
 Opción elegida: eliminemos cualquier atributo que tenga datos faltantes.
 
 ```{r  echo=TRUE}
-DatosProdExistentes$BestSellersRank<- NULL
-readyData$BestSellersRank<- NULL
+DatosProdExistentes$BestSellersRank<- NULL # conjunto de datos original
+readyData$BestSellersRank<- NULL # datos dummy
 ```
 
 
@@ -233,20 +275,26 @@ readyData$BestSellersRank<- NULL
 
 ## Outliers
 
--   En el dataset de entrenamiento *Datos de Productos existentes*, encontramos valores atípicos en bastantes variables (no estudio outliers de la variable ID (número del producto), porque no tiene sentido)
+En el conjunto de datos *Productos existentes*, encontramos valores atípicos en bastantes variables 
+
+Nota: no estudio outliers de la variable ID: número del producto, porque no tiene sentido.
 
 
 ```{r}
 boxplot(DatosProdExistentes[,3:8],main="BoxPlot. Precio y calificación de los productos \n Datos del histórico de ventas")
 # $out
 
-boxplot(DatosProdExistentes[,9:10],main="BoxPlot. Reseña de los productos \n Datos Completos")
+boxplot(DatosProdExistentes[,9:10],main="BoxPlot. Reseña de los productos \n 
+        Datos del histórico de ventas")
 
-boxplot(DatosProdExistentes[,11],main="BoxPlot. Recommend product \n Datos Completos")
+boxplot(DatosProdExistentes[,11],main="BoxPlot. Recommend product \n 
+        Datos del histórico de ventas")
 
-boxplot(DatosProdExistentes[,13:16],main="BoxPlot. Dimensiones del prducto \n Datos Completos")
+boxplot(DatosProdExistentes[,13:16],main="BoxPlot. Dimensiones del prducto \n 
+        Datos del histórico de ventas")
 
-boxplot(DatosProdExistentes[,17],main="BoxPlot. Volumen de ventas \n Datos Completos",
+boxplot(DatosProdExistentes[,17],main="BoxPlot. Volumen de ventas \n 
+        Datos del histórico de ventas",
         xlab="Volumen de ventas")
 ```
 
@@ -261,11 +309,15 @@ DatosProdExistentes %>%
   
 ```
 
-Se trata de un tipo de accesorios y juegos para la consola. Estos dos tipos de producto no son productos sobre los que queramos realizar predicciones. Este tipo de valores atípicos pueden afectar a la variable objetivo _volume_ a la hora de la construcción de modelos de predicción.
-Por lo que vamos a proceder a eliminar estos dos registros de mi conjunto de datos.
+
+Estos artículos son: un accesorio y un juego para la consola. Estos dos tipos de producto no son productos sobre los que estamos interesados en realizar predicciones.
+
+Los valores atípicos pueden afectar a la variable objetivo _volume_ a la hora de la construcción de modelos de predicción.
+
+Vamos a proceder a eliminar estos dos registros de mi conjunto de datos, ya que no son un tipo de producto en el que estemos interesados y puede afectar negativamente en mi modelo.
 
 
-```{r}
+```{r echo=TRUE}
 DatosProdExistentes2 <- DatosProdExistentes %>% 
     filter(Volume!=11204) %>% 
     filter(Volume !=7036 )
@@ -281,24 +333,10 @@ readyData2 <- readyData %>%
 
 
 
-## Transformación de variables
-
-### Factorización de las variables
-
-No es necesario
-
-### Normalización de variables
-
-No necesitamos normalizar las variables para que estén todas en la misma escala, ya la mayoría de variables son ordinales, y las que no lo son (peso, altura del producto,...) se encuentran todas en la misma escala.
-
-```{r}
-#scale(x,center = TRUE,scale = TRUE)
-```
-
 
 ## Creación de variables
 
-No necesario por el momento. Ya, con dummy data nuestro nuevo dataset _readydata_ contiene una nueva variable binaria para cada tipo de producto, con un uno si el producto es de ese tipo y un 0 si no lo es.
+No necesario por el momento. Ya, con dummy data nuestro nuevo dataset _readydata_ contiene una nueva variable binaria para cada tipo de producto, con un uno si el producto es de ese tipo y un 0 si no lo es. Un total de 12 nuevas variables
 
 
 
@@ -325,7 +363,7 @@ productosEx <- cbind.data.frame(TipoDeProducto,NumeroProductos)
 
 
 
-```{r}
+```{r fig.align='center'}
 ggplot(data=productosEx, aes(x=reorder(TipoDeProducto,-NumeroProductos) , 
                                      y =NumeroProductos , fill= TipoDeProducto)) + 
     geom_bar(stat="identity", position="dodge")+
@@ -349,7 +387,7 @@ En Blackwell electronics, encontraremos:
 - Encontramos 3 articulos de tipo tables y 3 accesorios para las impresoras
 
 
-Vamos a estudiar como influyen las distintas variables en **el volumen de ventas** de los diferentes productos, con el objetivo de entender como varían las ventas en función del producto.
+Vamos a estudiar como influyen las distintas variables en **el volumen de ventas** de los diferentes productos, con el objetivo de entender como varían las ventas en función del tipo de producto y si hay relación entre el volumen de ventas y la valoración que dan los clientes a los productos y al servicio recibido.
 
 Para ello, comenzaremos con un breve resumen estadístico de nuestros datos:
 
@@ -367,11 +405,6 @@ Para ello, comenzaremos con un breve resumen estadístico de nuestros datos:
 
 
 ```{r}
-summary(DatosProdNuevos)
-```
-
-
-```{r}
 summary(readyData)
 ```
 
@@ -379,15 +412,58 @@ summary(readyData)
 -   **Tipo de producto**: La mayoría de productos que existentes en blackwell eran accesorios, seguido de impresoras y extensiones de la garantía. Para los nuevos productos, la mayoría son smartphones o netbooks
 
 
--   **Precio**: El precio medio de los productos existentes en blackwell es de 247.25 euros (rango de 2249.99/3.60), mientras que el precio medio de los productos nuevos es bastante superior: 425.6 euros (rango:8.5/1999)
+-   **Precio**: El precio medio de los productos existentes en Blackwell es de 247.25 € siendo 2249.99 € el precio del producto más caro y 3.60 € el del más barato.
 
 
+```{r}
+# readyData2[readyData2$Price==3.60,]
+# readyData2[readyData2$Price==2249.99,]
+# 
+DatosProdExistentes[DatosProdExistentes$Price==3.60,1:3] %>% kable(booktabs=TRUE)
+DatosProdExistentes[DatosProdExistentes$Price==2249.99,1:3]%>% kable(booktabs=TRUE)
+```
+
+El producto más caro es un ordenador PC y los más baratos son artículos que son accesorios
 
 
+-   **Volumen de ventas**: El volumen medio de ventas es de 705 ventas. Encontramos productos que no se han vendido nunca y por el contrario, el producto que más volumen de ventas hatenido ha sido vendido un total de 11204 veces. Vamos a ver de que productos se trata
 
 
+```{r}
+DatosProdExistentes[DatosProdExistentes$Volume==0,c("ProductType","ProductNum","Volume")] %>% kable(booktabs=TRUE, caption="Productos menos vendidos")
+DatosProdExistentes[DatosProdExistentes$Volume==11204,c("ProductType","ProductNum","Volume")]%>% kable(booktabs=TRUE, caption = "Producto más vendido")
+```
 
 
+Veamos ahora las valoraciones de los clientes:
+
+
+-   **Reseñas por el servicio**:
+
+      - Reseñas positivas: Hay un producto que ha recibido un total de 536 reseñas positivas     por el servicio prestado
+      - Reseñas negarivas: El producto que más reseñas negativas ha recibido por el servicio ha    sido uno con un total de 112
+  
+Vamos a ver de que productos se trata en ambos casos
+
+```{r}
+DatosProdExistentes[DatosProdExistentes$PositiveServiceReview==536,
+                    c("ProductType","ProductNum","PositiveServiceReview","Volume")] %>% kable(booktabs=TRUE, caption="Producto con mayor número de reseñas de servicio positivo")
+DatosProdExistentes[DatosProdExistentes$NegativeServiceReview==112,
+                    c("ProductType","ProductNum","PositiveServiceReview","Volume")]%>% kable(booktabs=TRUE, caption = "Producto con mayor número de reseñas por un servicio negativo")
+```
+
+-   **Número de estrellas**:
+
+    - 4 estrellas: el máximo son 431 valoraciones de 4 estrellas
+    - 2 estrellas: el máximo de valoraciones de 2 estrellas son un total de 370
+  
+  
+```{r}
+DatosProdExistentes[DatosProdExistentes$x4StarReviews==431,
+                    c("ProductType","ProductNum","x4StarReviews","Volume")] %>% kable(booktabs=TRUE, caption="Producto con mayor número reseñas de 4 estrellas")
+DatosProdExistentes[DatosProdExistentes$x2StarReviews==370,
+                    c("ProductType","ProductNum","x2StarReviews","Volume")]%>% kable(booktabs=TRUE, caption = "Producto con mayor número de reseñas de 2 estrellas")
+```
 
 
 
@@ -396,19 +472,26 @@ summary(readyData)
 ## Correlación
 
 
-La correlación mide el grado de asociación de las variables.Vamos a estudiar como se relacionan las variables independientes con el volumen de ventas, y también como se relacionan las variables independientes entre sí de cara a plantear la posibilidad de eliminar las variables que no necesitamos para el análisis (baja correlación con la variable objetivo o colinealidad, esto último entre variables independientes)
+La correlación mide el grado de asociación de las variables.
+
+Vamos a estudiar como se relacionan las variables independientes con el volumen de ventas, y también como se relacionan las variables independientes entre sí de cara a plantear la posibilidad de eliminar las variables que no necesitamos para el análisis (baja correlación con la variable objetivo o colinealidad, esto último es una correlación muy alta entre variables independientes)
+
+El valor de la correlación lineal, me dirá cuanto va a influir la variable en el modelo de regresión linea. Aquellas variables con mayor grado de correlación (positiva o negariva), van a tener más importancia de cara a predecir el volumen de ventas que aquellas que a penas guarden relación con la variable _objetivo_
 
 ```{r}
 corrData <- cor(readyData2)
 #corrData 
 
 corrplot(corrData, method = "number", 
-         number.cex = 0.5 ,
+         number.cex = 0.45 ,
          type = 'lower',
+         tl.cex=0.5,
          diag = FALSE)
 ```
 
 Correlación:
+
+Tenemos que tener en cuenta que el comportamiento humano es dificil de predecir, aquellas variables que son reseñas de los clientes no son fáciles interpretar de cara a construir un modelo de predicción.
 
 
 - **Volumen de ventas y reseñas de los clientes**: 
@@ -416,33 +499,33 @@ Correlación:
   - Con reseñas negativas, la relación tambien es positiva, pero es menos fuerte ( 0.309), es menos de la mitad
 
   
-- **Volumen de ventas y reseñas del servicio prestado**: El comportamiento humano es dificil de predecir.
+- **Volumen de ventas y reseñas del servicio prestado**: 
 
-  - Existe una correlación lineal perfecta entre la variable target _volumen de ventas_ y la variable _5 estrellas_. Es decir, la variable objetivo queda perfectamente explicada por esta varaible y por tanto en cualquier modelo el resto de variables no van a participar
+  - Existe una correlación lineal perfecta entre la variable target _volumen de ventas_ y la variable _5 estrellas_. Es decir, la variable objetivo queda perfectamente explicada por esta varaible y por tanto en cualquier modelo el resto de variables no van a participar. Esto es un problema de cara a construir un modelo de regresión. Debemos eliminar esta variable de mis datos y no introducirla como variable predictora del volumen de ventas
 
-Por este motivo, vamos a estudiar como es la correlación entre las variables 1,2,3,4 y 5 estrellas y también con la variable objetivo, volumen de ventas para hacer una selección de variables.
+Por este motivo, vamos a estudiar como es la correlación entre las variables 1,2,3,4 y 5 estrellas y también de éstas con la variable objetivo, volumen de ventas para hacer una selección de variables y eliminar aquellas que sean necesarias.
 
 ```{r}
 corrReseñas <- cor(readyData2[,c(15,16,17,18,19,28)])
 corrReseñas %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
 
 corrplot(corrReseñas, method = "number", number.cex = 0.5 ,
-         title = "Matriz de correlación", 
          type = 'lower',
+         tl.cex=0.5,
          diag = FALSE)
 ```
 
-Observamos que estas variables están fuertemente correladas y esto puede indicar _colinealidad, ya que es entre variables independientes_. Consideraremos que existe colinealidad a partir de una correlación de 0.9.
+Observamos que estas variables están fuertemente correladas entre ellas y esto puede indicar _colinealidad, ya que existe una alta correlación entre variables independientes_. Consideraremos que existe colinealidad a partir de una correlación de 0.9.
 
 De esta forma, se tiene:
 
-- **Variables 1 y 2 estrellas**: La correlación es de 0.95, es la mayor de todas. De estas dos variables, la correlación con la variable volumen de ventas es, respectivamente: 0.49 y 0.26, por tanto, me quedo con la variable 1 estrella, que es la más correlada con mi variable objetivo
+- **Variables 1 y 2 estrellas**: La correlación es de 0.98, es la mayor correlación existente entre dos variables independientes en todo el dataset. De estas dos variables, la correlación con la variable volumen de ventas es, respectivamente: 0.37 y 0.45, por tanto, me quedo con la variable 2 estrellas, que es la más correlada con mi variable objetivo y elimino la variable 1 estrella de mis datos
 
-- **Variables 4 y 3 estrellas**: La correlación es 0.94, es muy alta. La variable que tiene una mayor correlación con la variable objetivo es la variable 4 estrellas (0.88), ya que 3 estrellas tiene una correlación de 0.76 con el volumne de ventas. Mantengo en mi conjunto de datos la variable 4 estrellas
+- **Variables 4 y 3 estrellas**: La correlación es 0.91, es muy alta. La variable que tiene una mayor correlación con la variable objetivo es la variable 4 estrellas (0.73), ya que 3 estrellas tiene una correlación de 0.61 con el volumen de ventas. Mantengo en mi conjunto de datos la variable 4 estrellas
 
-Conclusión: Eliminamos del estudio las variables 5 estrella, 3 estrellas y 2 estrellas, debido a la colinealidad existente entre estas variables y por unacorrelación perfecta, que hará que no participe ninguna variable a la hora de construir modelos de predicción:
+Conclusión: Eliminamos del estudio las variables 3 estrellas y 2 estrellas, debido a la colinealidad existente entre estas variables y la variable 5 estrellas por una correlación perfecta, que hará que no participe ninguna variable a la hora de construir modelos de predicción:
 
-```{r}
+```{r echo=TRUE}
 readyData2$x5StarReviews <- NULL
 readyData2$x3StarReviews  <- NULL
 readyData2$x1StarReviews  <- NULL
@@ -454,28 +537,29 @@ DatosProdExistentes2$x1StarReviews <- NULL
 
 
   
-- Precio y tipo de producto: Parece que la variable precio guarda relación significativa con alguna de las variables tipo del procucto
+- **Tipo de producto, precio y volumen deventas**: Parece que la variable precio guarda relación significativa con alguna de las variables tipo del producto
 
 ```{r}
 corrDataType <- cor(readyData2[,c(1,2,3,4,5,6,7,8,9,10,11,12,14,25)])
-# corrData
 #corrDataType %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
 ```
 
 
 ```{r}
 corrplot(corrDataType, method = "number",
-         title = "Matriz de correlación", type = 'lower', diag = FALSE)
+         type = 'lower',
+          tl.cex=0.5,
+         diag = FALSE)
 
 ```
 
-Estas variables están muy poco correladas con la variable objetivo _volumen de ventas_ y por tanto, a la hora de construir modelos, no van a participar a penas en la predicción de nuestra variable.
+Las variables tipo de producto están muy poco correladas con la variable objetivo _volumen de ventas_ y por tanto, a la hora de construir modelos, no van a participar a penas en la predicción de nuestra variable.
 
 La mayor correlación con esta variable es con los juegos para la consola (0.32) y con los ordenadores portátiles.
 
 
 
-- Volumen de ventas y medias del artículo: La correlación es muy baja para la variable altura del producto por tanto, esta variable no va a tener importancia a penas a la hora de predecir cuando modelemos la variable volumen de ventas con el resto de variables independientes.
+- **Volumen de ventas y medias del artículo**: La correlación es muy baja para la variable altura del producto por tanto, esta variable no va a tener importancia a penas a la hora de predecir cuando modelemos la variable volumen de ventas con el resto de variables independientes.
 
 |Variable        |  Cor con _Volumen_ |
 |----------------|--------------------|                 
@@ -487,46 +571,27 @@ La mayor correlación con esta variable es con los juegos para la consola (0.32)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Varianza de las variables dummy
 
 Al estar trabajando con datos dummy, las variables de tipos de productos son 0 y 1, se trata de variables con gran cantidad de registros con un valor 0 y por tanto, esas variables tendrán una varianza muy próxima a 0. 
 
-Esto es un problema a la hora de entrenar modelos, porque a la hora de hacer una partición en datos de entrenamiento y testeo, como es probable que tengamos variables con varianzas próximas a 0, esto supondrá errores en los modelos.
+Esto es un problema a la hora de entrenar modelos, porque a la hora de hacer una partición en datos de entrenamiento y testeo, como es probable que tengamos variables con varianzas próximas a 0, esto supondrá errores en los algoritmos para obtener modelos de predicción.
 
 ```{r}
-readyData2
-
-
-Var = (apply(readyData2, 2, var )*(nrow(readyData2)-1))/(nrow(readyData2))
-Var %>% kable(caption = "Varianza de las variables",col.names = "Varianza")
+readyData2 %>% select(1:12) %>% head()
 ```
 
 
-Las varianzas de las variables _Product type_ son muy pequeñas, todas son menores que 0,2 y la más pequeña es de 0,012, esto son valores muy bajos para una varianza de cara a modelar.
+```{r}
+Var = (apply(readyData2, 2, var )*(nrow(readyData2)-1))/(nrow(readyData2))
+Var %>% sort(decreasing = FALSE) %>% 
+  kable(caption = "Varianza de las variables. De menor a mayor",col.names = "Varianza")
+```
 
-Además, habíamos visto que prácticamente todas salvo las variables _product type_ tenían una correlación con el volumen de ventas muy baja. Optaremos por eliminar de los datos de cara a elaborar modelo todas las variables product type debido a que nos llevarán a tener peores métricas y más variabilidad en los modelos.
+
+Las varianzas de las variables _Product type_ son muy pequeñas, todas son menores que 0,2 y la más pequeña es de 0,012, correspondiente a productos de tipo consola esto son valores muy bajos para una varianza de cara a modelar.
+
+Además, habíamos visto que prácticamente todas salvo las variables _product type_ tenían una correlación con el volumen de ventas muy baja. Optaremos por eliminar todas las variables product type de los datos de cara a elaborar modelos debido a que el problema de las varianzas tan pequeñas nos llevarán a tener peores métricas y más variabilidad en los modelos o incluso, obtener errores a la hora de aplicar los algoritmos y no poder ni construir los modelos.
 
 
 
@@ -577,7 +642,7 @@ En el gráfico de barras podemos ver como los accesiorios son el tipo de product
 
 
 
-```{r include=FALSE}
+```{r include=FALSE }
 ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenMedio) , 
                                      y =VolumenMedio , fill= ProductType)) + 
     geom_bar(stat="identity", position="dodge") +
@@ -591,7 +656,9 @@ ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenMedio) ,
 
 
 
-Vamos a representar cada tipo de producto en función del volumen de ventas, para así tratar de entender el comportamiento de esta variable
+Vamos a representar cada tipo de producto en función del volumen de ventas, para así tratar de entender el comportamiento de esta variable.
+
+Nota: Vamos a representar cuatro tipo de productos: PCs, portátiles, smartphones y netbooks, que son los que nos interesa de cara a predecir su volumen de ventas.
 
 
 
@@ -609,7 +676,7 @@ DatosProdExistentes %>%
 ```
 
 
-```{r}
+```{r fig.align='center'}
 # df para gráfica
  df.rep = data.frame(ProductNum = c(101,102,103,142),
                     Volume = c(12,8,12,84))
@@ -650,6 +717,7 @@ ggplot(data=df.rep, aes(x=ProductNum,
                     y=Volume, fill=ProductNum)) + 
     geom_bar(stat="identity", position="dodge")+
   scale_x_continuous(breaks = seq(100,150,by=1))+
+  
   scale_y_continuous(breaks = seq(0,250,by=10))+
   labs(title = "Volumen del histórico de ventas de ordenadores portátiles",
        caption = "Fuente: Elaboración propia")+
@@ -659,6 +727,9 @@ ggplot(data=df.rep, aes(x=ProductNum,
 ```
 
 El ordenador portatil 143 ha tenido un volumen bajo con respecto al los otros dos modelos de portátiles, el 105 que es el que más se ha vendido (232 unidades) y el 104, con un total de 196 ventas.
+
+
+#### Smartphones
 
 ```{r}
 DatosProdExistentes %>% 
@@ -690,6 +761,9 @@ ggplot(data=df.rep, aes(x=ProductNum,
 
 
 El smartphone 197 es, con gran diferencia, el que más se vende de los cuatro modelos disponibles, con un total de 1472 ventas. Por el contrario, el 190 se ha vendido 16 veces en toda la historia de la tienda.
+
+#### Netbooks
+
 
 
 ```{r}
@@ -757,7 +831,7 @@ ylab("Número de ventas")
 
 Conclusiones: 
 
-- La mayoría de ventas corresponden a Samrthpones, en concreto al smartphone 197, con un volumen de ventas total de 1472. Con gran diferencia, este es el producto que más se ha vendido a lo largo de los años
+- La mayoría de ventas corresponden a Samrthpones, en concreto al smartphone 197, con un volumen de ventas total de 1472. Con gran diferencia, este es el producto (dentro del estudio los cuatro tipos que me interesan) que más se ha vendido a lo largo de los años
 - Los ordenadores tipo PC y netbook son los que menos se han vendido a lo largo de los años
 
 
@@ -798,15 +872,21 @@ Conclusiones:
 
 
 
-### Tipo de producto y volumen ventas (importes generados) quizas me da igual
 
 
-A continuación, veremos una tabla en la que tenemos expresado el importe total de las ventas generadas por cada tipo de producto, así como el valor medio, es decir, el importe medio de las ventas generadas de cada producto.
 
 
-Vamos a representarlo gráficamente
 
-```{r}
+
+
+
+```{r include=FALSE}
+### Tipo de producto y volumen ventas (importes generados) 
+
+# A continuación, veremos una tabla en la que tenemos expresado el importe total de las # ventas generadas por cada tipo de producto, así como el valor medio, es decir, el importe # medio de las ventas generadas de cada producto.
+
+# Vamos a representarlo gráficamente
+
 ggplot(data=DatosVentas, aes(x=reorder(ProductType,-ImporteVenta) , 
                                      y =ImporteVenta , fill= ProductType)) + 
     geom_bar(stat="identity", position="dodge") +
@@ -817,11 +897,7 @@ ggplot(data=DatosVentas, aes(x=reorder(ProductType,-ImporteVenta) ,
          )+
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-```
 
-
-
-```{r}
 ggplot(data=DatosVentas, aes(x=reorder(ProductType,-MediaImporteVenta) , 
                                      y =MediaImporteVenta , fill= ProductType)) + 
     geom_bar(stat="identity", position="dodge") +
@@ -832,9 +908,16 @@ ggplot(data=DatosVentas, aes(x=reorder(ProductType,-MediaImporteVenta) ,
          )+
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+
+# Vemos, que el importe medio del volumen total de ventas de los juegos de consola es de # 706413.5800 dólares. Es destacable que para accesorios, se han generado 42030.9815 euros de # media, siendo éste el tipo de producto que más se ha vendido. Esto significa que se han # realizado muchas ventas pero de un importe bajo.
 ```
 
-Vemos, que el importe medio del volumen total de ventas de los juegos de consola es de 706413.5800 dólares. Es destacable que para accesorios, se han generado 42030.9815 euros de media, siendo éste el tipo de producto que más se ha vendido. Esto significa que se han realizado muchas ventas pero de un importe bajo.
+
+
+
+
+
+
 
 
 ### Reseñas vs tipo de producto
@@ -891,6 +974,7 @@ ggplot(data=df.rep, aes(x=Estrellas,
 ```
 
 Los productos que más reseñas de 4 estrellas han recibido son los accesorios (son los productos más vendidos)
+
 Los productos de software han recibido un número similar de reseñas de 4 y 2 estrellas.
 
 
@@ -928,7 +1012,7 @@ ggplot(data=df.rep2, aes(x=Estrellas,
 ```
 
 
-El mayor número de reseñas de 4 estrellas es para los smartphones y con un número de reseñas similar, los ordenadores portátiles. 
+El mayor número de reseñas de 4 estrellas es para los smartphones y con un número de reseñas similar, encontramos a los ordenadores portátiles. 
 Cabe destacar que los ordenadores PC no han recibido reseñas de 2 estrellas.
 
 
@@ -968,7 +1052,7 @@ df.scatter = data.frame(
 #   theme_ipsum()
 ```
  
- FALTA COMENTAR ESTOS GRÁFICOS
+
 
 Vamos a estudiar si las reseñas de los clientes guardan alguna relación con el volumen de ventas de los productos PC, Portátiles, netbooks y smartphones.
 
@@ -1030,7 +1114,13 @@ ggplot(df.scatter2Est, aes(x=Estrellas, y=Volume, label=ProductNum)) +
 ```
 
 
+Cada punto corresponde a un artículo, identificado con su número.
 
+Encontramos una limitación, y es que al haber tan poca cantidad de reseñas y de artículos de cada producto, es difícil tener resultados fiables.
+
+Nota: A continuación vamos a ver modelos de predicción, la linea roja es la recta de regresión, que ha sido construida con muy pocos datos, en ocasiones sólo con dos registros. Esto va a llevar a que el modelo no sea muy fiable.
+
+#### Ordenadores PC
 
 
 
@@ -1068,8 +1158,11 @@ ggplot(df.scatter2EstPC, aes(x=Estrellas, y=Volume, label=ProductNum)) +
   theme_ipsum()
 ```
 
+Vemos como para reseñas de 4 estrellas, todos los artículos se encuentran dentro de la banda verde (intervalo de confianza). En el gráfico vemos que el artículo 142 es el que más reseñas de 4 estrellas ha recibido y también el que más se ha vendido. 
 
-No ha habido reseñas de dos estrellas en esta variable
+No ha habido reseñas de dos estrellas en esta variable, esto es destacable, porque a la hora de construir un modelo de predicción, para los ordenadores PC esta variable no va a influir en absoluto, mientras que para otro tipo de productos si.
+
+#### Ordenadores portátiles
 
 
 ```{r ,out.width="50%", out.height="50%"}
@@ -1108,6 +1201,8 @@ ggplot(df.scatter2EstLaptop, aes(x=Estrellas, y=Volume, label=ProductNum)) +
 
 
 
+Únicamente tenemos 3 datos en cada gráfico y 3 datos para construir el modelo de regresión (la línea roja es la recta de regresión). Tenemos más valoraciones de 4 estrellas que de dos estrellas. La pendiente es mayor en la recta de la variable 4 estrellas.
+
 ```{r ,out.width="50%", out.height="50%", include=FALSE}
 df.scatterLaptop = df.scatter %>% filter(ProductType=="Laptop")
 ggplot(df.scatterLaptop, aes(x=Estrellas, y=Volume, colour=reseña,label =ProductNum)) +
@@ -1125,6 +1220,9 @@ ggplot(df.scatterLaptop, aes(x=Estrellas, y=Volume, colour=reseña,label =Produc
 
 
 ```
+
+
+#### Netbooks
 
 
 ```{r ,out.width="50%", out.height="50%"}
@@ -1162,7 +1260,9 @@ ggplot(df.scatter2EstNetbook, aes(x=Estrellas, y=Volume, label=ProductNum)) +
 
 
 
-Al haber unicamente dos modelos, vemos que la recta se ajusta a estos puntos.
+Al haber únicamente dos modelos, vemos que la recta se ajusta a estos puntos. La pendiente de la recta vuelve a ser mayor para la variable 4 estrellas.
+
+Con tan pocos registros, es dificil conocer como se comportan las ventas en función a las reseñas. Si podemos decir que aquellos artículos con mayor número de reseñas positivas se venden más.
 
 
 
@@ -1213,6 +1313,11 @@ ggplot(df.scatter2EstSmartp, aes(x=Estrellas, y=Volume, label=ProductNum)) +
   xlab("Número de reseñas")+
   theme_ipsum()
 ```
+
+
+Este tipo de productos es el que más reseñas de 4 estrellas ha recibido. Todos los puntos se encuentran dentro de los intervalos de confianza.
+
+
 
 
 ```{r include=FALSE}
@@ -1307,9 +1412,11 @@ ggplot(data=df.rep2R, aes(x=Estrellas,
   ylab("Número de reseñas")+
   xlab("Servicio prestado")
 ```
-Para estos productos, con respecto a la revisión del servicio prestado para los  ordenadores portátiles, hay un mayor número de clientes que han considerado que el  servicio prestado ha sido negativo (30) frente a los 20 que han considerado un buen  servicio. Tambien ocurre en los netbooks, que ha obtenido mayor número de valoracines de un servicio negativo (4) frente a 3 positivos. 
 
-Por el contrario, existe un mayor múmero de reseñas positivas en smartphones y netbooks.
+
+Para estos productos, con respecto a la revisión del servicio prestado para los  ordenadores portátiles, hay un mayor número de clientes que han considerado que el  servicio prestado ha sido negativo (30) frente a los 20 que han considerado un buen  servicio. También ocurre lo mismo para los artículos tipo netbook, que ha obtenido mayor número de valoracines de un servicio negativo (4) frente a 3 positivos. 
+
+Por el contrario, existe un mayor número de reseñas positivas en smartphones y netbooks.
 
 
 Veamos como es el volumen de ventas en función del número de reseñas del servicio pero para cada tipo de producto.
@@ -1371,11 +1478,16 @@ Vemos que la mayoría de puntos se sitúan en torno a la recta roja y dentro del
 
 Cada punto representa un producto específico, identificado por un número.
 
-Los puntos "peligrosos" serían aquellos que referentes a reseñas negativas (rojos) pero con un gran volumen de ventas, serían puntos rojos que estarían situados en la zona superior derecha de los gráficos.
 
-Con respecto a este gráfico, el producto 197 ha recibido 22 reseñas de servicio positivo y únicamente 3 de un servicio negativo, y ha tenido más de 1300 ventas.
 
-No tenemos puntos con un grán número de reseñas negativas y con un gran volumen de ventas. El producto 105 ha sido el que mayor número de reseñas por un mal servicio ha recibido, en concreto 20 valoraciones negarivas y únicamente 7 reseñas positivas. El volumen de ventas de este producto ha sido de casi 200 unidades.
+Con respecto a estos gráficos, el producto 197 ha recibido 22 reseñas de servicio positivo y únicamente 3 de un servicio negativo, y ha tenido más de 1300 ventas.
+
+
+No tenemos puntos con un grán número de reseñas negativas y con un gran volumen de ventas. El producto 105 ha sido el que mayor número de reseñas por un mal servicio ha recibido, en concreto 20 valoraciones negativas y únicamente 7 reseñas positivas. El volumen de ventas de este producto ha sido de casi 200 unidades.
+
+Encontramos una limitación, y es que al haber tan poca cantidad de reseñas y de artículos de cada tipo de producto, es difícil tener resultados fiables.
+
+#### Ordenadores tipo PC
 
 
 ```{r ,out.width="50%", out.height="50%"}
@@ -1415,6 +1527,8 @@ ggplot(df.scatterNegPC, aes(x=Valoracion, y=Volume, label=ProductNum)) +
 
 
 
+
+
 ```{r include=FALSE}
 df.scatter2PC = df.scatter2 %>% filter(ProductType=="PC")
 ggplot(df.scatter2PC, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNum)) +
@@ -1429,6 +1543,9 @@ ggplot(df.scatter2PC, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductNu
   xlab("Número de valoraciones recibidas")+
   theme_ipsum()
 ```
+
+
+#### Portátiles
 
 ```{r ,out.width="50%", out.height="50%"}
 
@@ -1481,6 +1598,8 @@ ggplot(df.scatter2Laptop, aes(x=Valoracion, y=Volume, colour=reseña,label=Produ
 ```
 
 
+#### Netbooks
+
 ```{r ,out.width="50%", out.height="50%"}
 
 df.scatterPosNetb = df.Positive %>% filter(ProductType=="Netbook" & reseña=="PositiveServiceReview")
@@ -1514,6 +1633,9 @@ ggplot(df.scatterNegNetb, aes(x=Valoracion, y=Volume, label=ProductNum)) +
   theme_ipsum()
 ```
 
+Solo hay dos artículos, las rectas se ajustan a estos dos productos.
+
+#### Smartphones
 
 
 ```{r include=FALSE}
@@ -1565,6 +1687,12 @@ ggplot(df.scatterNegSmart, aes(x=Valoracion, y=Volume, label=ProductNum)) +
 ```
 
 
+La pendiente de la recta de regresión de las reseñas positivas es mucho más inclinada que la pendiente de la variable reseñas negativas.
+
+
+
+Hay muchas más reseñas positivas que negativas, por lo que podemos pensar que la variable reseñas positivas nos va a dar más información sobre como varían las ventas en función del tipo de producto basándonos en el número de reseñas positivas que ha recibido.
+
 
 ```{r include=FALSE}
 df.scatter2Smt = df.scatter2 %>% filter(ProductType=="Smartphone")
@@ -1584,7 +1712,6 @@ ggplot(df.scatter2Smt, aes(x=Valoracion, y=Volume, colour=reseña,label=ProductN
 
 
 
-La pendiente es mayor en la recta de regresión de la variable reseñas positivas por el servicio.
 
 
 
@@ -1601,7 +1728,8 @@ La pendiente es mayor en la recta de regresión de la variable reseñas positiva
 
 La variable objetivo es una variable numérica, por lo que usaremos algoritmos de regresión para tratar de modelarla en función del resto de variables independientes.
 
-Las variables que utilizaremos para predecir el volumen de ventas en el modelo de regresión  son las siguientes:
+No vamos a introducir las variables binarias product type debido a que íbamos a tener variables en los datos de entrenamiento con varianzas cero o valores muy próximos a 0 y esto iba a suponer un problema a la hora de modelar el volumen de ventas.
+
 
 
 
@@ -1620,7 +1748,7 @@ PredictoresRegresion<- c(
 "ProfitMargin" 
 ) 
 PredictoresRegresion%>% 
-  kable(booktabs=TRUE,col.names = "Variables predictoras", caption="Variables para predecir el volumen de ventas con un modelo de regresión") %>% 
+  kable(booktabs=TRUE,col.names = "Variables predictoras", caption="Variables para predecir el volumen de ventas") %>% 
   kable_styling(latex_options = "striped") 
 ```
 
@@ -1628,18 +1756,10 @@ PredictoresRegresion%>%
 Límite de correlación: 20%
 
 - No hemos introducido las variables correspondientes a la medida de la altura producto debido a que la correlación era demasiado débil, ninguna llegaba al umbral mínimo necesario:  ProductHeight 
+
  
  
-Para el resto de modelos, introduciremos todas las variables disponibles en el el conjunto de datos, que son:
 
-```{r}
-Predictores<- c( "Price"                ,"x4StarReviews"               , "x2StarReviews"           ,"PositiveServiceReview"  , "NegativeServiceReview"       ,"Recommendproduct"    , "ShippingWeight"           ,"ProductDepth"                , "ProductWidth"   ,"ProductHeight"                   , "ProfitMargin" 
-) 
-
-Predictores%>% 
-  kable(booktabs=TRUE,col.names = "Variables predictoras", caption="Variables para predecir el volumen de ventas") %>% 
-  kable_styling(latex_options = "striped") 
-```
 
 
 
@@ -1770,7 +1890,7 @@ Nota: He probado introduciendo el resto de variables y el modelo me daba peor aj
 
 Con estos hiperparámetros obtenemos las siguientes métricas:
 
-- $R^2_{ajustado}=0.7905$, es decir, las variables dependientes consiguen explicar un 79,05% de la variabilidad del volumen de ventas. No es un mal ajuste
+- $R^2_{ajustado}=0.7905$, es decir, las variables independientes consiguen explicar un 79,05% de la variabilidad del volumen de ventas. No es un mal ajuste.
 - Vemos que las variables que podemos considerar significativas a la hora de predecir las ventas de los productos son:
   - Variable 4 estrellas
   - Reseña positiva del servicio
@@ -1778,14 +1898,22 @@ Con estos hiperparámetros obtenemos las siguientes métricas:
   - Altura del producto
   - Término independiente
   - Nota: la variable profit margin están al límite y también podríamos considerarlas significativas
-  
+- **Influencia de las variables en el modelo:** En este modelo, la mayoría de variables introducidas influyen fuertemente en la predicción del volumen de ventas. En concreto, las 3 variables que más influyen a la hora de predecir el volumen de ventas son:
+  - Reseñas positivas por el servicio
+  - 4 estrellas
+  - medida de profundidad del producto. 
+  El resto de variables, salvo la variable 2 estrellas (0,39%) y el precio (8,13%), influyen en el modelo con un porcentaje no muy bajo (mayor al 15%)
 
 
-En este modelo, la mayoría de variables introducidas influyen fuertemente en la predicción del volumen de ventas. En concreto, las 3 variables que más influyen a la hora de predecir el volumen de ventas son: Reseñas positivas por el servicio, 4 estrellas y medida de profundidad del producto. El resto de variables, salvo la variable 2 estrellas (0,39%) y el precio (8,13%), influyen en el modelo con un porcentaje no muy bajo (mayor al 15%)
+#### Variabilidad del modelo en la validación cruzada
 
+```{r}
+modeloRL$resample
+```
 
+Observamos que en la primera iteracción el valor de $R^2$ es de 0.72691856, que es un valor aceptable (consigo explicar casi un 73% de la variabilidad total del modelo), sin embargo, en la segunda iteracción de la primera repetición el valor de $R^2=0,32$, un valor bastante bajo. Hay mucha variabilidad en las repeticiones del valor de $R^2$, indicando así que el modelo no es fiable, a veces lo hace muy bien (llego a obtener un $R^2=0.98$) pero otras no y por tanto las predicciones tampoco tienen ninguna fiabilidad.
 
-
+Tambien ocurre lo mismo con el error cuadrático medio y con el error medio absoluto, existe gran variabilidad. No es un modelo fiable.
 
 
 ### Algoritmo 2: Suport Vector Machine with Linear Kernel
@@ -1857,7 +1985,7 @@ modeloSVM$results[7,]
 ```
 
 
-- $R^2=0.7457163$
+- $R^2=0.7457163$, es decir, las variables independientes consiguen explicar un 74,57% de la variabilidad del volumen de ventas. No es un mal ajuste.
 - Error cuadrático medio (RMSE):  291.9401
 
 #### Variabilidad del modelo en la validación cruzada
@@ -1868,9 +1996,11 @@ Esto es un aspecto importante, ya que si para cada modelo en la validación cruz
 modeloSVM$resample
 ```
 
-Observamos que en la primera iteracción el valor de $R^2$ es de 0.818, que es un buen valor (consigo obtenener un 80% de la variabilidad total del modelo), sin embargo, en la segunda iteracción de la primera repetición el valor de $R^2=0,35$, un valor bastante bajo. Hay mucha variabilidad.
+Observamos que en la primera iteracción el valor de $R^2$ es de 0.818, que es un buen valor (consigo obtenener un 80% de la variabilidad total del modelo), sin embargo, en la segunda iteracción de la primera repetición el valor de $R^2=0,35$, un valor bastante bajo. Hay mucha variabilidad, a veces el modelo lo hace muy bien (llego a obtener un $R^2=0.98$) pero otras no y por tanto las predicciones tampoco tienen ninguna fiabilidad.
 
 Tambien ocurre lo mismo con el error cuadrático medio y con el error medio absoluto, existe gran variabilidad. No es un modelo fiable.
+
+
 
 
 
@@ -1919,7 +2049,9 @@ labs(title = "Importancia de las variables",subtitle = "Modelo Random Forest",ca
 theme_minimal()
 ```
 
-La variable más importante a la hora de redecir el volumen de ventas es la variable _reseña positiva del servicio_. Del resto de variables, únicamente la variable 4 estrellas participa con un 4%.
+La variable más importante a la hora de redecir el volumen de ventas es la variable _reseña positiva del servicio_. Del resto de variables, únicamente la variable 4 estrellas participa con un 4%. La importancia del resto de variables en el modelo es prácticamente nula. 
+
+El modelo da mucha importancia a variables que miden el comportamiento humano, que es muy dificil de modelar.
 
 
 
@@ -1949,27 +2081,28 @@ ModeloRandomForestR$results[5,]
 ```
 
 
-- Valor de $R^2=0.9132643	$
+- Valor de $R^2=0.9132643$  es decir, las variables independientes consiguen explicar un 91,13% de la variabilidad del volumen de ventas. Es un buen ajuste
 - Error cuadrático medio: 156.4108
+- Error absoluto medio: 87.57
 
 
 #### Variabilidad del modelo en la validación cruzada
+
+
 ```{r}
 ModeloRandomForestR$resample
 ```
-Aqú vemos como la variabilidad en las métricas es bastante menor y por tanto, el modelo será mucho más fiable de cara a predecir.
+Aqú vemos como la variabilidad en las métricas es bastante menor y por tanto, el modelo será mucho más fiable de cara a predecir el volumen de ventas.
 
-Los valores de $R^2$ varían entre 0.82 y 0.96, llegando a alcanzar incluso un valor de 0.99.
+Los valores de $R^2$ varían entre 0.82 y 0.96, llegando a alcanzar incluso un valor de 0.99. Se trata del modelo más equilibrado en cuanto a métricas.
 
-
-
-
+Sin embargo, observamos que el valor del error cuadrático medio si que varía para alguna iteracción. Este valor se ve muy afectado por los valores extremos, y éstos hacen que mi modelo funcione peor.
 
 
 
-### Algoritmo 4: Gradient Boosting (Automathic Grid)
 
-Este algoritmo no es adecuado con nuestros datos.
+
+
 
 ### Prueba de los modelos en los datos de testeo y elección del modelo final
 
@@ -1981,31 +2114,22 @@ Ahora realizaremos predicciones del volumen de ventas de los distintos productos
 
 Vamos a predecir el volumen de ventas de los diferentes productos con el modelo de regresión lineal creado antes.
 
-##### Predicciones y evaluación del rendimiento en datos de validación
+##### Predicciones y evaluación del rendimiento en datos de testeo
 
 ```{r}
 PredRL<-predict(modeloRL, newdata = DatosTesteoR)
 # DatosTesteoR$Volume
 
 
-cbind.data.frame(ProductNumRTesteo,PredRL,DatosTesteoR$Volume) %>% 
-  kable(booktabs=TRUE,caption = "Modelo de Regresión Lineal", col.names = c("Producto","Predicción","Valor real")) %>%
+cbind.data.frame(ProductNumRTesteo,PredRL,DatosTesteoR$Volume , abs(PredRL-DatosTesteo$Volume)) %>% 
+  kable(booktabs=TRUE,caption = "Modelo de Regresión Lineal", col.names = c("Producto","Predicción","Valor real","Error absoluto en la predicción")) %>%
   kable_styling(latex_options = "striped")
 ```
-Valores de ventas negativas...
+
+
 
 ```{r}
-plot(DatosTesteoR$Volume,PredRL, 
-     main = "Predicciones VS Valor real \n Modelo de regresión lineal",
-     xlab="Producto", ylab="Volumen de ventas", yaxt ="n",xaxt = "n",
-     xlim = c(0,200), ylim=c(0,2500))
-axis(1, at=seq(0, 200, 10))
-axis(2, at=seq(0, 3000, 100))
-par(new=T)
-plot(DatosTesteoR$Volume,DatosTesteo$Volume,
-     col="red",xlab = "", ylab = "",yaxt ="n",xaxt = "n")
-legend(1, 95, legend=c("Line 1", "Line 2"),
-       col=c("red", "blue"), lty=1:2, cex=0.8)
+(PostResRL <- postResample(PredRL,DatosTesteo$Volume ))
 ```
 
 
@@ -2042,24 +2166,18 @@ BESTmodeloSVM
 ```
 
 
-```{r}
-BESTmodeloSVM$resample # comentar y mirar a fondo con el que me quede
-```
-
-
-
 
 
 ```{r}
 BESTmodeloSVM$results
 ```
 
-- $R^2=0.7457143$
+- $R^2=0.7457143$ Explico un 74.57% de la variabilidad total del modelo.
 - Error cuadrático medio (RMSE):  291.943
 
 
 
-##### Predicciones y evaluación del rendimiento en datos de validación
+##### Predicciones y evaluación del rendimiento en datos de testeo
 
 ```{r}
 PredSVM<-predict(BESTmodeloSVM, newdata = DatosTesteo)
@@ -2070,6 +2188,15 @@ cbind.data.frame(ProductNumTesteo,PredSVM,DatosTesteo$Volume,abs(PredSVM-DatosTe
   kable(booktabs=TRUE,caption = "Modelo Support Vector Machine", col.names = c("Número del producto","Predicción","Valor real","Error absoluto en la predicción")) %>%
   kable_styling(latex_options = "striped")
 ```
+
+
+
+
+
+```{r}
+( PostResSVM <-  postResample(PredSVM,DatosTesteo$Volume ) ) 
+```
+
 
 
 #### Algoritmo 3: Random Forest Regression
@@ -2092,7 +2219,7 @@ Hiperparámetros del mejor modelo: mtry=11
 RFRBestGridTest <-  expand.grid(mtry=11)
 set.seed(17)
 BestModeloRandomForestR <- train(Volume~., 
-                data = DatosTesteo, 
+                data = DatosEntreamiento, 
                 method = "rf", 
                 trControl=fitControl, 
                 preProcess=c("center","scale"),
@@ -2101,18 +2228,21 @@ BestModeloRandomForestR <- train(Volume~.,
 #training results
 BestModeloRandomForestR
 ```
-```{r}
-BestModeloRandomForestR$resample
-```
 
 
 
-- $R^2=0.8536408$
+
+
+- $R^2=0.911$ 
 - Error cuadrático medio (RMSE):  528.1523
 
 
+```{r}
+BestModeloRandomForestR$resample
+```
+ Poca variabilidad en las métricas. En aquellas repeticiones de la validación cruzada en que los valores de $R^2$ es muy alto (0.99), el error cuadrático medio es muy inferior.
 
-##### Predicciones y evaluación del rendimiento en datos de validación
+##### Predicciones y evaluación del rendimiento en datos testeo
 
 ```{r}
 PredRFR<-predict(BestModeloRandomForestR, newdata = DatosTesteo)
@@ -2127,97 +2257,380 @@ cbind.data.frame(ProductNumTesteo,PredRFR,DatosTesteo$Volume, abs(DatosTesteo$Vo
 
 
 
+```{r}
+( PostResRF <- postResample(PredRFR,DatosTesteo$Volume ))
+```
+
+
+
+
 
 #### Comparación de las métricas en los cuatro modelos
 
 
 
-
-
-
-
-
-
-
-
-
-
-## Test del modelo final 
-
-### Evaluación del modelo final y testeo
-
-
 ```{r}
-# mejor modelo y predict
-```
-
-Conclusiones:
+Mods<- c("Regresión lineal","SVM","Random Forest")
+PostResample <- rbind(PostResRL,PostResSVM,PostResRF) 
 
 
+cbind.data.frame(Mods, PostResample) %>% 
+kable(booktabks=TRUE) %>% 
+  kable_styling(latex_options = "striped") 
 
-```{r}
-# var imp con repre del mejor
+
 ```
 
 
+**Conclusión**: 
+
+Las métricas de $R^2$ son bastante similares, en los tres modelos tengo un valor mayor de 0.8, por tanto los ajustes son buenos. Los tres modelos explican más de un 80% de la variabilidad total del volumen de ventas. El mejor valor de $R^2$ lo obtengo con el modelo Random Forest. 
+
+Sin embargo, la diferencia entre el error cuadrático medio y el error absoluto medio:
+
+```{r}
+cbind.data.frame(Mods,PostResample[,1]- PostResample[,3]) %>% 
+  kable(booktabs=TRUE,col.names = c("Modelo", "RMSE-MAE"))
+
+```
+
+
+
+
+Vemos que en el modelo en el que estas dos medidas están más cerca es en el modelo Random forest. El error cuadrático medio, por su definición, está muy influenciado por valores extremos y por tanto es en las observaciones extremas donde obtengo más error. 
+
+Como para el último modelo tenemos la diferencia más pequeña entre estas dos métricas, tendremos menor variabilidad. Además, el error cuadrático medio más pequeño era tambien para el modelo Random forest, por tanto, es el modelo donde tengo menor influencia de los valores extremos.
+
+Además, en el modelo SVM, hemos obtenido una predicción de  -7.18 ventas del artículo 103 y de -16 ventas del artículo 190. Esto no es admisible. Ocurre lo mismo en el modelo de regresión lineal. Sin embargo, no nos pasa esto aplicando el modelo random forest.
+No podemos elegir modelos donde obtenemos predicciones de ventas negativas.
+
+
+Por todos estos motivos, el algoritmo elegido para realizar predicciones del volumen de ventas de los diferentes tipos de productos, es el que nos ha proporcionado mejores métricas y menor variabilidad de éstas en la validación cruzada. Se trata del algoritmo **Random forest**
+
+
+
+## Predicciones del volumen de ventas en el dataset de nuevos productos con Random Forest
+
+Para realizar predicciones, es necesario preparar el conjunto de datos de nuevos productos de la misma forma que hemos preparado el de los productos existentes.
+
+En primer lugar, hacemos dummyData
+
+
+```{r, echo=TRUE}
+# dummy of the data
+newDataFrame <- dummyVars(" ~ .", data = DatosProdNuevos)
+readyDataNewProduct <- data.frame(predict(newDataFrame, newdata = DatosProdNuevos))
+
+readyDataNewProduct %>% kable(booktabs=TRUE, caption="Dummy data. Datos de nuevos productos") %>% kable_styling(latex_options = "striped")
+```
+
+
+A continuación, vamos a eliminar la variable Best Seller Rank de nuestro conjunto de datos, ya que no la hemos utilizado como variable independiente en los modelos debido a que tenía valores faltantes 
+
+```{r , echo=TRUE}
+readyDataNewProduct$BestSellersRank<- NULL # datos dummy
+```
+
+Por último, eliminamos las variables correspondientes a los tipos de productos del conjunto de datos y las variables 5,3 y 1 estrellas. 
+
+```{r, echo=TRUE}
+readyDataNewProduct2 <- readyDataNewProduct[,-c(1,2,3,4,5,6,7,8,9,10,11,12,15,17,19)]
+```
+
+
+Ya tenemos los datos preparados para aplicar el modelo Random Forest. Vamos a visualizar los datos.
+
+
+```{r}
+readyDataNewProduct2 %>% 
+  kable(booktabs=TRUE) %>%
+  kable_styling(latex_options = "striped")
+
+```
 
 
 
 
 
+Predicciones con el mejor modelo para los datos de nuevos productos. La variable product num no la introducimos para modelar. Es solo una identificación
 
 
 
 
-## Predicciones de la marca prefererida en el dataset de nuevos productos
+```{r}
+DatosNuevosProductos <- readyDataNewProduct2 
+FinalPred <- 
+  predict(BestModeloRandomForestR, newdata = DatosNuevosProductos[,-1])
 
 
 
+cbind.data.frame(DatosNuevosProductos [,1],FinalPred) %>% 
+  kable(booktabs=TRUE,caption = "Predicciones del volumen de venta en el conjunto de datos de nuevos productos",col.names = c("Número de identificación del producto","Predicción final")) %>% 
+  kable_styling(latex_options = "striped")
+
+```
+
+
+
+
+Ahora vamos a unir el conjunto de datos de los nuevos productos con el valor de las predicciones de ventas
+
+```{r}
+output <- DatosProdNuevos
+output$PrediccionFinal <- FinalPred
+```
+
+
+```{r}
+output %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+```{r}
+write.csv(output, file="C2.T3output.csv", row.names = TRUE)
+```
+
+
+Vamos a ver las predicciones finales de los tipos de productos de interés: PC, portátiles, netbooks y Smartphones
+
+```{r}
+output %>% 
+  filter(ProductType=="PC" |ProductType=="Laptop" | ProductType=="Netbook" | ProductType=="Smartphone") %>% 
+  select(c(1,2,19)) %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
 
 
 # Conclusiones y recomendaciones
 
+
 En este apartado exponemos aquellos aspectos interesantes para el negocio que son destacables y que permitan a la dirección establecer estrategias y tomar decisiones.
+
+
+## Aspectos destacables
+
+Es necesario destacar que este dataset tenía ciertas limitaciones que revisaremos a continuación
+
+- Muy pocos registros, únicamente teníamos 80 registros inicialmente. Después de depurar los datos nos quedamos con 78 registros. De cara a modelar la variable volumen de ventas y hacer una partición, no hemos podido dividir en un conjunto de datos de validación, ya que entrenaríamos los modelos con muy pocos registros. Únicamente hemos dividido en datos de entrenamiento y test
+- Estamos intentando explicar como se comportan las variables de reseñas por el servicio y la puntuación (5, 4 estrellas,...) pero estudiando por tipo de producto. Hay productos, como por ejemplo netbooks donde solo tenemos dos modelos, y por tanto, son muy pocos datos para sacar conclusiones claras. Aun así, las rectas de regresión de las gráficas nos indican que a mayor número de valoraciones de 4 y 2 estrellas, el volumen de ventas es mayor. Ocurre lo mismo para la variable reseñas positivas por el servicio.
+
+- Al trabajar con variables dummy (binarias 0-1) obtenemos variables con varianzas muy próximas a 1. Esto supone que tenemos que eliminar esas variables y no las introduciremos como variables predictoras del volumen de ventas, ya que al realizar la partición, lo mas probable es que en los datos de entrenamiento tengamos variables con varianzas nulas o muy próximas a 0. Esto provocará que los algoritmos no puedan ser implementados o que tengamos mucha variabilidad.
+
 
 ## Métodos utilizados para modelar (resultados/métricas obtenidas)
 
 Modelos: 
 
 - Regresión lineal
-- Random Forest regressor
 - Suport Vector Machine
-- Gradient Boosting
+- Random Forest regressor
+
 
 Las métricas obtenidas en cada uno de los modelos son las siguientes:
 
 ```{r}
-# data.frame(
-#   `Modelo`=c("C50","Random Forest","KNN","Gradient Boosting"),
-#   `Rcuadrado`=c(92.27,91.77,70.54,92.38),
-#   `RMSE` = c(83.51, 82.39,36.75,83.77)
-# ) %>% 
-#   kable(booktabs=TRUE) %>% 
-#   kable_styling(latex_options = "striped")
+
+cbind.data.frame(Mods, PostResample) %>% 
+kable(booktabks=TRUE) %>% 
+  kable_styling(latex_options = "striped") 
+
+
 ```
 
 
 
-Modelo elegido: 
+Las métricas de $R^2$ son bastante similares, en los tres modelos tengo un valor mayor de 0.8, por tanto los ajustes son buenos. Los tres modelos explican más de un 80% de la variabilidad total del volumen de ventas. El mejor valor de $R^2$ lo obtengo con el modelo Random Forest. 
+
+Sin embargo, la diferencia entre el error cuadrático medio y el error absoluto medio:
+
+```{r}
+cbind.data.frame(Mods,PostResample[,1]- PostResample[,3]) %>% 
+  kable(booktabs=TRUE,col.names = c("Modelo", "RMSE-MAE"))
+```
+
+
+
+
+Vemos que en el modelo en el que estas dos medidas están más cerca es en el modelo Random forest. El error cuadrático medio, por su definición, está muy influenciado por valores extremos y por tanto es en las observaciones extremas donde obtengo más error. 
+
+Como para el último modelo tenemos la diferencia más pequeña entre estas dos métricas, tendremos menor variabilidad. Además, el error cuadrático medio más pequeño era tambien para el modelo Random forest, por tanto, es el modelo donde tengo menor influencia de los valores extremos.
+
+Además, en el modelo SVM, hemos obtenido una predicción de  -7.18 ventas del artículo 103 y de -16 ventas del artículo 190. Esto no es admisible. Ocurre lo mismo en el modelo de regresión lineal. Sin embargo, no nos pasa esto aplicando el modelo random forest.
+No podemos elegir modelos donde obtenemos predicciones de ventas negativas.
+
+
+Por todos estos motivos, el algoritmo elegido para realizar predicciones del volumen de ventas de los diferentes tipos de productos, es el que nos ha proporcionado mejores métricas y menor variabilidad de éstas en la validación cruzada. 
+
+Modelo elegido: Se trata del algoritmo **Random forest**
+
+Es interesante destacar que el modelo da mucha importancia a variables que miden el comportamiento humano, que es muy dificil de modelar. La variable 4 estrellas va a ser determinante de cara a predecir el volumen de ventas de un determinado producto.
+
+
+
+
+## Predicciones
+
+```{r}
+output %>% 
+  filter(ProductType=="PC" |ProductType=="Laptop" | ProductType=="Netbook" | ProductType=="Smartphone") %>% 
+  select(c(1,2,19)) %>% 
+kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+Vamos a representar el volumen de ventas en función del tipo de producto
+
+```{r}
+MisProds <-
+output %>% 
+  filter(ProductType=="PC" |ProductType=="Laptop" | ProductType=="Netbook" | ProductType=="Smartphone") 
+
+ggplot(data=MisProds, aes(x=ProductType ,   y =PrediccionFinal , fill= ProductType)) + 
+    geom_bar(stat="identity", position="dodge") +
+   scale_y_continuous(breaks = seq(0,1500,by=100))+
+    labs(title="Gráfico de barras" ,
+         subtitle= "Tipo de producto y volumen de ventas ", 
+         caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas",
+         xlab="Tipo de producto", ylab="Volumen de ventas histórico")+
+  ylab("Predicción del volumen total de ventas")+
+  xlab("Tipo de producto")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+La predicción es la siguiente: 
+
+El tipo de producto que más se venderá serán los netbooks, seguido de smartphones, ordenadores PC y por último, el producto que menos se va a vender son laptops.
+
+
+Vamos a ver por artículos dentro de cada tipo de productos
 
 
 
 ```{r}
+output %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="PC") %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
 
+
+```{r fig.align='center'}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(171,172),
+                    Volume = c(473,134))
+
+
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks = c(171,172))+
+  #scale_y_continuous(breaks = seq(5,90,by=5))+
+  labs(title = "Predicción de ventas de PC",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")
+```
+
+La predicción del volumen de ventas del PC número 171 es muy superior al del 172. Además, el número de veces que se ha valorado el producto 171 con 4 estrellas (96 veces) es mucho mayor al del producto 172 (11 veces). Además, el número de reseñas positivas por el servicio también es superior, es casi el doble (12 para el producto 171 y 7 para el 172)
+
+
+```{r}
+output %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="Laptop") %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+```{r fig.align='center'}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(173,175,176),
+                    Volume = c(156,30,26))
+
+
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks = c(173,175,176))+
+  #scale_y_continuous(breaks = seq(5,90,by=5))+
+  labs(title = "Predicción de ventas de portátiles",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")
+```
+
+De nuevo, el producto con más valoraciones opsitivas por el servicio y con más valoraciones de 4 estrellas es aquel al que se le ha adjudicado un valor de predicción de ventas mayor, el producto 173
+
+```{r}
+output %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="Netbook") %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+```{r fig.align='center'}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(178,180,181,183),
+                    Volume = c(82,1136,133,27))
+
+
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks =c(178,180,181,183))+
+  scale_y_continuous(breaks = seq(0,1500,by=100))+
+  labs(title = "Predicción de ventas de Netbooks",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")
+```
+
+La predicción es que la mayoría de ventas de netbooks será del producto 180, ha recibiso 112 valoraciones de 4 estrellas y 28 reseñas positivas, unos valores muy grandes en comparación al resto de artículos de este tipo.
+
+
+
+
+```{r}
+output %>% 
+  group_by(ProductType) %>% 
+  filter(ProductType=="Smartphone") %>% 
+  kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+```{r fig.align='center'}
+# df para gráfica
+ df.rep = data.frame(ProductNum = c(193,194,195,196),
+                    Volume = c(347,896,84,158))
+
+
+
+ggplot(data=df.rep, aes(x=ProductNum, 
+                    y=Volume, fill=ProductNum)) + 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks =c(193,194,195,196))+
+  scale_y_continuous(breaks = seq(0,1500,by=100))+
+  labs(title = "Predicción de ventas de Smartphones",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Número de ventas")
 ```
 
 
 
+La predicción de ventas de smartphones nos sugiere que se venderán casi 900 unidades del producto 194, mientras que la venta del resto de productos será bastante inferior.
+
+Aquí, el número de valoraciones de 4 estrellas recibidas para los productos 193 y 194 es el mismo (26 valoraciones), la diferencia reside en que el producto que mayor predicción de ventas tiene es el 194, con un valor en número de reseñas positivas superior al 193 (14 frente a 8 valoraciones)
 
 
-
-
-
-
-
+Conclusión: A la hora de predecir el volumen de ventas de un determinado artículo, la variable cuatro estrellas es determinante. Conforme más valoraciones de 4 estrellas haya recibido, mayor predicción de ventas tendrá el producto.
 
 
