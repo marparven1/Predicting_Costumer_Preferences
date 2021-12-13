@@ -1,0 +1,42 @@
+---
+title: "PreWork"
+author: "Marta Venegas Pardo"
+date: "12/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+dire<-getwd()
+setwd(dire)
+```
+
+
+# Instalamos los paquetes necesarios 
+
+```{r}
+library(arules)
+library(arulesViz)
+??arules
+```
+
+
+# Lectura de datos
+
+No podemos abrir nuestro archivo _.csv_ con la función read.csv, ya que no tenemos un dataframe con variabled, sino que tenemos un dataset en formato "basket", donde encontramos una fila por cada compra realizada y en las columnas los artículos correspondientes a cada compra.
+
+Para leer los datos en el formato correcto usamos la función _read.transactions()_
+
+```{r}
+transactions<- read.transactions('ElectronidexTransactions2017/ElectronidexTransactions2017.csv',  header = FALSE, 
+                  rm.duplicates = FALSE, 
+                                 format = 'basket',
+                                 sep=',')
+transactions
+summary(transactions)
+```
+
