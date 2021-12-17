@@ -1,0 +1,251 @@
+---
+title: "Proyecto para Blackwell Electronics. Análisis de cesta de la compra"
+subtitle: "Módulo 3 Tarea 4: Descubrir asociación entre productos"
+author: "Marta Venegas Pardo"
+date: "17 de Diciembre de 2021"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    toc: yes
+    toc_depth: 5
+    number_sections: yes
+lang: es
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+
+```{r , librerias}
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+
+library(arules)
+library(arulesViz)
+
+# ??arules
+```
+
+
+```{r}
+dire<-getwd()
+setwd(dire)
+```
+
+
+
+# Introducción (definición del problema + objetivos)
+
+## Objetivos
+
+La junta directiva de Blackwell Electronics está considerando adquirir una empresa minorista de productos electrónicos, **Electronidex**.
+
+Objetivos:
+
+- Identificar patrones de compra que proporcionen información sobre la clientela de Electronidex
+- Impulsar iniciativas orientadas a ventas 
+- Analizar si Blackwell debería adquirir Electronidex, beneficiándose así de la venda de algunos de los productos que tiene esta empresa minorista
+
+
+Para ello, realizaremos un *market basket analysis* para descubrir los patrones de compra de la clientela de Electronidex
+
+
+## Qué encontraremos en este informe
+
+- Descripción de los datos y del dataset
+- 
+- 
+- 
+- Conclusiones y recomendaciones (Por ejemplo: artículos de venta cruzada, promociones de rebajas, en caso de que eliminen artículos, etc.)
+
+
+
+
+## Procedimiento para cumplir mis objetivos
+
+- 
+- 
+- 
+- 
+
+
+
+# Lectura de datos y descripción del dataset
+
+Tenemos un archivo CSV con información correspondiente a todas las transacciones online que se han realizado durante un mes en la empresa Electronidex
+
+
+Debido a la falta de financiación, Electronidex solo puede extraer datos sobre los artículos que los clientes compraron por sus transacciones.
+
+No podemos abrir nuestro archivo _.csv_ con la función read.csv, ya que no tenemos un dataframe con variables, sino que tenemos un dataset en formato "basket", donde encontramos una fila por cada compra realizada y en las columnas los artículos correspondientes a cada compra.
+
+Para leer los datos en el formato correcto usamos la función _read.transactions()_
+
+```{r }
+transactions<- read.transactions('ElectronidexTransactions2017/ElectronidexTransactions2017.csv', 
+                                       format = c("basket"), sep = ",", 
+                                       rm.duplicates = TRUE, skip = 0, 
+                                       encoding = "readLines")
+transactions
+```
+
+
+
+
+
+
+```{r }
+summary(transactions)
+```
+
+```{r}
+n<- length(transactions)
+cat("Tenemos un total de: ",n," transacciones.")
+```
+
+
+En las 9835 transacciones podemos destacar lo siguiente:
+
+    + Media de productos por cada transacción: 4.4 items (4 items)
+    + Numero máximo de productos en una transacción: 30 items
+
+No tenemos información sobre cuántos items de cada producto se han vendido, únicmanete tenemos una cota inferior. 
+Es decir, el producto más frecuente es un iMac, que ha aparecido en 2519 transacciones, eso no significa que únicamente se hayan vendido 2519 iMacs, ya que en una transacción podrían haberse comprado varios. Esto mismo ocurre para el resto de productos. Sabemos en cuantas transacciones aparece cada producto, pero no cuántas unidades totales se han vendido de cada producto.
+
+
+A continuación vamos a ver una lista con 6 transacciones:
+
+
+```{r}
+LIST(transactions) %>% head()
+```
+
+
+
+
+Los 120 productos que se han vendido por Electronix en el pasado mes:
+
+```{r}
+itemLabels(transactions) %>% 
+  kable(booktabs=TRUE, caption = "Productos de Electronix",longtable=TRUE,col.names = "Producto") %>% 
+  kable_styling(latex_options = c("stripped","repeat_header"))
+```
+
+
+
+
+Vamos a visualizar a través de un histograma los 20 productos que han aparecido en más transacciones.
+
+
+
+```{r}
+itemFrequencyPlot(transactions,topN=20,
+                  type="absolute",
+                  col = rainbow(4))
+```
+
+Veamos la misma información a modo de tabla:
+
+
+```{r}
+itemmost <-  itemFrequency(transactions,type="relative") # default type:"relative"
+# itemmost %>% sort(decreasing = TRUE) %>% head(20)
+itemmostAbs<- itemFrequency(transactions,type="absolute")
+# itemmostAbs %>% sort(decreasing = TRUE) %>% head(20) %>% kable(col.names = "Frecuencia absoluta")
+
+
+cbind.data.frame(sort(round(100*itemmost,2),decreasing = TRUE) %>% head(20),sort(itemmostAbs,decreasing = TRUE) %>% head(20)) %>% 
+kable(col.names = c("Frecuencia relativa","Frecuencia absoluta")) 
+```
+
+El producto más vendido es el iMac, se trata de un ordenador PC. Se han vendido en un mes 2519 unidades de este producto. 
+Blackwell vende 4 tipos de PC y el total de ventas histórico de este tipo de producto ha sido un total de _sdgsg_ unidades. Solo con este producto, el iMac, ya supera con mucha diferencia a los de blackwell. Además, entre los productos más vendidos también encontramos otros modelos de ordenadores PC, entre ellos: Lenovo Desktop Computer, Dell Desktop, ViewSonic Monitor, Acer Desktop... Las cotas inferiores de ventas de estos productos son todas superiores a las 1000 unidades. Con esto concluímos que se han vendido más de 7000 unidades de este tipo de ordenador en un único mes, mientras que la venta histórica de Blackwell del mismo tipo de producto, aunque diferente modelo no ha sido mayor de _400uds_
+
+Ocurre lo mismo con los portátiles.
+
+
+
+Productos menos vendidos por Electronix.
+
+
+```{r}
+cbind.data.frame(sort(round(100*itemmost,2),decreasing = FALSE) %>% head(20),sort(itemmostAbs,decreasing = FALSE) %>% head(20)) %>% 
+kable(col.names = c("Frecuencia relativa","Frecuencia absoluta")) 
+```
+
+
+
+
+
+
+```{r}
+image(transactions %>% head(200)) 
+
+image(sample(transactions,size = 200))
+```
+
+Para Items desde 60 a 80 hay muchas transacciones
+
+
+
+
+
+
+# 4. Aplicación del algoritmo a priori
+
+
+
+
+
+```{r}
+# apriori() function to apply the Apriori algorithm to find association rules.
+RulesName<-apriori (transactions, parameter = list(supp = 0.01,
+                                                    conf = 0.5,minlen=2))
+```
+
+```{r}
+ # To view the rules, use the inspect() function. 
+
+inspect(RulesName)
+```
+
+No hemos encontrado ninguna regla. Tenemos que modificar los valores de confirence y support.
+
+El no tener reglas nos indica que hemos puesto unos valores muy elevados
+
+
+
+```{r}
+ # How many rules did the algorithm create?
+ # To get ‘strong' rules, increase the value of ‘conf’ parameter.
+```
+
+
+
+
+```{r}
+rules_iMac <- apriori (data=transactions, parameter=list (supp=0.01,conf = 0.20,minlen=2), 
+                  appearance = list(default="rhs",lhs=c("iMac","ViewSonic Monitor","HP Laptop") ), control = list (verbose=F)) # those who bought 'milk' also bought..
+rules_iMac
+# el problema es confident, es baja
+# Para buscar itemsets, fuerzo la conbinación de productos
+# "iMac","ViewSonic Monitor" conbinación interesante
+
+rules_conf_iMac <- sort (rules_iMac, by="confidence", decreasing=TRUE) # 'high-confidence' rules.
+inspect((rules_conf_iMac))
+# ir viendo que productos me interesa meter en lhs
+# en rhs me van saliendo los tops
+```
+
+¿Patrones y relaciones entre los items? - He trabajado esto ahora
+
+
+
+
+
+
+
