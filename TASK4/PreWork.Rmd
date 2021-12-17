@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 ```
 
 
@@ -15,28 +15,178 @@ dire<-getwd()
 setwd(dire)
 ```
 
+# 2. Install, Upload, and Get to Know Your Dataset
 
-# Instalamos los paquetes necesarios 
+## Instalamos los paquetes necesarios 
 
-```{r}
+```{r , librerias}
+library(dplyr)
+library(tidyverse)
+
 library(arules)
 library(arulesViz)
-??arules
+
+# ??arules
 ```
 
 
-# Lectura de datos
+## Lectura de datos
 
 No podemos abrir nuestro archivo _.csv_ con la función read.csv, ya que no tenemos un dataframe con variabled, sino que tenemos un dataset en formato "basket", donde encontramos una fila por cada compra realizada y en las columnas los artículos correspondientes a cada compra.
 
 Para leer los datos en el formato correcto usamos la función _read.transactions()_
 
-```{r}
-transactions<- read.transactions('ElectronidexTransactions2017/ElectronidexTransactions2017.csv',  header = FALSE, 
-                  rm.duplicates = FALSE, 
-                                 format = 'basket',
-                                 sep=',')
+```{r }
+transactions<- read.transactions('ElectronidexTransactions2017/ElectronidexTransactions2017.csv', 
+                                       format = c("basket"), sep = ",", 
+                                       rm.duplicates = TRUE, skip = 0, 
+                                       encoding = "readLines")
 transactions
+```
+
+
+
+
+
+
+```{r }
 summary(transactions)
 ```
+
+Media: 4.4 items (4 items)
+
+No tenemos información sobre cuántos items de cada producto se han vendido, únicmanete tenemos una cota inferior. 
+Es decir, el producto más frecuente es un iMac, que ha aparecido en 2519 transacciones, eso no significa que únicamente se hayan vendido 2519 iMacs, ya que en una transacción podrían haberse comprado varios. Esto mismo ocurre para el resto de productos. Sabemos en cuantas transacciones aparece cada producto, pero no cuántas unidades se han vendido
+
+
+```{r}
+# inspect(transactions)
+```
+
+
+```{r}
+# inspect(transactions)
+df_transacciones <- as(transactions, Class = "data.frame")
+as.tibble(df_transacciones) %>% head()
+```
+
+
+
+
+```{r}
+n<- length(transactions)
+cat("Tenemos un total de: ",n," transacciones.")
+```
+
+
+```{r}
+size(transactions) %>% head()
+```
+
+
+
+```{r}
+LIST(transactions) %>% head()
+```
+
+
+Los productos:
+
+```{r}
+itemLabels(transactions)
+```
+
+
+```{r}
+#plot(transactions, measure=c("support","lift"))
+```
+
+
+# 3. Visualize Your Dataset
+
+
+
+
+```{r}
+itemFrequencyPlot(transactions,topN=20,
+                  type="absolute",
+                  col = rainbow(4))
+```
+
+```{r}
+itemmost <-  itemFrequency(transactions,type="relative") # default type:"relative"
+
+itemmost %>% sort(decreasing = TRUE) %>% head(20)
+```
+
+
+
+```{r}
+image(transactions %>% head(200)) 
+
+image(sample(transactions,size = 200))
+```
+
+Para Items desde 60 a 80 hay muchas transacciones
+
+
+
+```{r}
+
+```
+
+
+# 4. Aplicación del algoritmo a priori
+
+
+
+
+
+```{r}
+# apriori() function to apply the Apriori algorithm to find association rules.
+RulesName<-apriori (transactions, parameter = list(supp = 0.01,
+                                                    conf = 0.5,minlen=2))
+```
+
+```{r}
+ # To view the rules, use the inspect() function. 
+
+inspect(RulesName)
+```
+
+No hemos encontrado ninguna regla. Tenemos que modificar los valores de confirence y support.
+
+El no tener reglas nos indica que hemos puesto unos valores muy elevados
+
+
+
+```{r}
+ # How many rules did the algorithm create?
+ # To get ‘strong' rules, increase the value of ‘conf’ parameter.
+```
+
+
+
+
+```{r}
+rules_iMac <- apriori (data=transactions, parameter=list (supp=0.01,conf = 0.20,minlen=2), 
+                  appearance = list(default="rhs",lhs=c("iMac","ViewSonic Monitor","HP Laptop") ), control = list (verbose=F)) # those who bought 'milk' also bought..
+rules_iMac
+# el problema es confident, es baja
+# Para buscar itemsets, fuerzo la conbinación de productos
+# "iMac","ViewSonic Monitor" conbinación interesante
+
+rules_conf_iMac <- sort (rules_iMac, by="confidence", decreasing=TRUE) # 'high-confidence' rules.
+inspect((rules_conf_iMac))
+# ir viendo que productos me interesa meter en lhs
+# en rhs me van saliendo los tops
+```
+
+¿Patrones y relaciones entre los items? - He trabajado esto ahora
+
+
+
+
+
+
 
