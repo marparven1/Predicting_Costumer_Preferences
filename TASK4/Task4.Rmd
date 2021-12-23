@@ -17,8 +17,6 @@ lang: es
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
-
-
 ```{r , librerias}
 library(dplyr)
 library(tidyverse)
@@ -30,13 +28,10 @@ library(arulesViz)
 # ??arules
 ```
 
-
 ```{r}
 dire<-getwd()
 setwd(dire)
 ```
-
-
 
 # Introducción (definición del problema + objetivos)
 
@@ -46,57 +41,70 @@ La junta directiva de Blackwell Electronics está considerando adquirir una empr
 
 Objetivos:
 
-- Identificar patrones de compra que proporcionen información sobre la clientela de Electronidex
-- Impulsar iniciativas orientadas a ventas 
-- Analizar si Blackwell debería adquirir Electronidex, beneficiándose así de la venda de algunos de los productos que tiene esta empresa minorista
-
+-   Identificar patrones de compra que proporcionen información sobre la clientela de Electronidex
+-   Impulsar iniciativas orientadas a ventas
+-   Analizar si Blackwell debería adquirir Electronidex, beneficiándose así de la venda de algunos de los productos que tiene esta empresa minorista
 
 Para ello, realizaremos un *market basket analysis* para descubrir los patrones de compra de la clientela de Electronidex
 
+## Qué encontraremos en este informe (procedimiento para cumplir mis objetivos)
 
-## Qué encontraremos en este informe
-
-- Descripción de los datos y del dataset
-- 
-- 
-- 
-- Conclusiones y recomendaciones (Por ejemplo: artículos de venta cruzada, promociones de rebajas, en caso de que eliminen artículos, etc.)
-
-
+-   Explicación de las métricas que usaremos
+-   Descripción de los datos y del dataset
+-   Aplicación del algoritmo a priori para crear un modelo con reglas
+-   Análisis de las reglas 
+-   Conclusiones y recomendaciones
+-   Conclusiones y recomendaciones (Por ejemplo: artículos de venta cruzada, promociones de rebajas, en caso de que eliminen artículos, etc.)
 
 
-## Procedimiento para cumplir mis objetivos
+# Métricas de asociación para el análisis de cesta de la compra
 
-- 
-- 
-- 
-- 
+## Support - Soporte
+
+Frecuencia de un conjunto de productos (X,Y) en todas las transacciones. Frecuencia con la que una persona compra esos X,Y productos al mismo tiempo.
+Esta medida se calcula aplicando la regla de laplace: (casos favorables)/casos posibles
+
+Casos favorables: transacciones en las que aparecen los dos productos
+Casos posibles: todas las transacciones
+
+    + Límites: 0 (no aparecen juntos nunca) y 1 (en todas las transacciones he comprado esos dos productos).
+
+A mayor soporte, habrá mas transacciones en las que se han comprado estos productos juntos
+
+
+## Confidence - Confianza
+
+C(X->Y) Transacciones que contienen a X y a Y / transacciones que contienen sólo a X
+
+Probabilidad de que al comprar el artículo X compre también el artículo Y. Cuanto mayor confianza, mayor probabilidad de que al comprar X compre Y
+
+    + Límites: 0 (al comprar X la probabilidad de comprar Y es nula, no lo voy a comprar) y 1 (si al comprar X sé seguro que voy a compar el producto Y). Son casos extremos
+
+## Lift
+
+Este parámetro mide la frecuencia de compra de ambos / probabilidad de comprar X * probabilidad de cobrar Y
+
+Mide la robustez de las reglas (strength)
 
 
 
 # Lectura de datos y descripción del dataset
 
-Tenemos un archivo CSV con información correspondiente a todas las transacciones online que se han realizado durante un mes en la empresa Electronidex
-
+Tenemos un archivo CSV (formato Basket) con información correspondiente a todas las transacciones online que se han realizado durante un mes en la empresa Electronidex
 
 Debido a la falta de financiación, Electronidex solo puede extraer datos sobre los artículos que los clientes compraron por sus transacciones.
 
-No podemos abrir nuestro archivo _.csv_ con la función read.csv, ya que no tenemos un dataframe con variables, sino que tenemos un dataset en formato "basket", donde encontramos una fila por cada compra realizada y en las columnas los artículos correspondientes a cada compra.
-
-Para leer los datos en el formato correcto usamos la función _read.transactions()_
+Para leer los datos en el formato correcto usamos la función *read.transactions()*
 
 ```{r }
+# No podemos abrir nuestro archivo _.csv_ con la función read.csv, ya que no tenemos un dataframe con  variables, sino que tenemos un dataset en formato "basket", donde encontramos una fila por cada compra  realizada y en las columnas los artículos correspondientes a cada compra.
+
 transactions<- read.transactions('ElectronidexTransactions2017/ElectronidexTransactions2017.csv', 
                                        format = c("basket"), sep = ",", 
                                        rm.duplicates = TRUE, skip = 0, 
                                        encoding = "readLines")
 transactions
 ```
-
-
-
-
-
 
 ```{r }
 summary(transactions)
@@ -107,25 +115,29 @@ n<- length(transactions)
 cat("Tenemos un total de: ",n," transacciones.")
 ```
 
-
 En las 9835 transacciones podemos destacar lo siguiente:
 
     + Media de productos por cada transacción: 4.4 items (4 items)
     + Numero máximo de productos en una transacción: 30 items
 
-No tenemos información sobre cuántos items de cada producto se han vendido, únicmanete tenemos una cota inferior. 
-Es decir, el producto más frecuente es un iMac, que ha aparecido en 2519 transacciones, eso no significa que únicamente se hayan vendido 2519 iMacs, ya que en una transacción podrían haberse comprado varios. Esto mismo ocurre para el resto de productos. Sabemos en cuantas transacciones aparece cada producto, pero no cuántas unidades totales se han vendido de cada producto.
+No tenemos información sobre cuántos items de cada producto se han vendido, únicamenete tenemos una cota inferior del número de ventas para cada producto. Es decir, el producto más frecuente es un iMac, que ha aparecido en 2519 transacciones, eso no significa que únicamente se hayan vendido 2519 iMacs, ya que en una transacción podrían haberse comprado varios.
 
+Productos más frecuentes:
+
+    + iMac: 2519                
+    + HP Laptop CYBERPOWER: 1909
+    + Gamer Desktop: 1809 
+    + Apple Earpods: 1715      
+    + Apple MacBook Air: 1530                  
+    + (Other): 33622  
+
+Esto mismo ocurre para el resto de productos. Sabemos en cuantas transacciones aparece cada producto, pero no cuántas unidades totales se han vendido de cada producto.
 
 A continuación vamos a ver una lista con 6 transacciones:
-
 
 ```{r}
 LIST(transactions) %>% head()
 ```
-
-
-
 
 Los 120 productos que se han vendido por Electronix en el pasado mes:
 
@@ -135,12 +147,7 @@ itemLabels(transactions) %>%
   kable_styling(latex_options = c("stripped","repeat_header"))
 ```
 
-
-
-
 Vamos a visualizar a través de un histograma los 20 productos que han aparecido en más transacciones.
-
-
 
 ```{r}
 itemFrequencyPlot(transactions,topN=20,
@@ -148,8 +155,14 @@ itemFrequencyPlot(transactions,topN=20,
                   col = rainbow(4))
 ```
 
-Veamos la misma información a modo de tabla:
 
+
+
+Vamos a representar con otro gráfico de barras el histórico de ventas total de Blackwell Electronics, para así hacer una comparación.
+
+![](images/Captura%20de%20pantalla%202021-12-22%20a%20las%2022.36.34.png "Histórico de ventas. Blackwell Electronics")
+
+Veamos la misma información a modo de tabla:
 
 ```{r}
 itemmost <-  itemFrequency(transactions,type="relative") # default type:"relative"
@@ -162,23 +175,28 @@ cbind.data.frame(sort(round(100*itemmost,2),decreasing = TRUE) %>% head(20),sort
 kable(col.names = c("Frecuencia relativa","Frecuencia absoluta")) 
 ```
 
-El producto más vendido es el iMac, se trata de un ordenador PC. Se han vendido en un mes 2519 unidades de este producto. 
-Blackwell vende 4 tipos de PC y el total de ventas histórico de este tipo de producto ha sido un total de _sdgsg_ unidades. Solo con este producto, el iMac, ya supera con mucha diferencia a los de blackwell. Además, entre los productos más vendidos también encontramos otros modelos de ordenadores PC, entre ellos: Lenovo Desktop Computer, Dell Desktop, ViewSonic Monitor, Acer Desktop... Las cotas inferiores de ventas de estos productos son todas superiores a las 1000 unidades. Con esto concluímos que se han vendido más de 7000 unidades de este tipo de ordenador en un único mes, mientras que la venta histórica de Blackwell del mismo tipo de producto, aunque diferente modelo no ha sido mayor de _400uds_
+El producto más vendido es el iMac, se trata de un ordenador PC. Se han vendido en un mes como mínimo 2519 unidades de este producto. Blackwell vende 4 tipos de PC y el total de ventas histórico de este tipo de producto ha sido un total de *116* unidades. Solo con el modelo iMac, las ventas de ordenadores PC en un mes de Electronidex ya supera con mucha diferencia a la venta histórica de los de Blackwell.
 
-Ocurre lo mismo con los portátiles.
+Además, entre los productos más vendidos también encontramos otros modelos de ordenadores PC, entre ellos: Lenovo Desktop Computer, Dell Desktop, ViewSonic Monitor, Acer Desktop... Las cotas inferiores de ventas de estos productos son todas superiores a las 1000 unidades. Con esto concluímos que se han vendido más de 7000 unidades de este tipo de ordenador en un único mes, mientras que la venta histórica de Blackwell del mismo tipo de producto, aunque diferente modelo no ha sido mayor de *116 uds*.
 
+Ocurre lo mismo con los ordenadores portátiles. El histórico de ventas de Blackwell es de 516 unidades, mientras que en Electronidex, el portatil más vendido es el modelo HP Laptop, con un mínimo de ventas de 1909 artículos. Con un único producto, Electronidex ha vendido casi el cuádruple de productos en un único mes que Blackwell en toda su historia. Entre los productos más vendidos, encontramos también otros dos modelos de portatil, el Acer Aspire (814 ventas) y Dell Laptop (776 ventas).
 
+Destacar también que en los productos más vendidos, encontramos varios modelos de teclados, son productos de tipo accesorios. Backlit LED Gaming Keyboard (785), Apple Magic Keyboard (705), Apple Wireless Keyboard (638)
+
+Nota: Entre paréntesis aparecen las cotas inferiores de ventas.
+
+A continuación, vamos a adjuntar una tabla y un gráfico con el número de ventas histórico según tipo de producto para poder hacer comparaciones:
+
+![](images/Captura%20de%20pantalla%202021-12-22%20a%20las%2022.36.25.png "Histórico de ventas. Blackwell Electronics"){width="607"}
 
 Productos menos vendidos por Electronix.
 
-
 ```{r}
-cbind.data.frame(sort(round(100*itemmost,2),decreasing = FALSE) %>% head(20),sort(itemmostAbs,decreasing = FALSE) %>% head(20)) %>% 
+cbind.data.frame(sort(round(100*itemmost,2),decreasing = FALSE) %>% 
+                   head(30),sort(itemmostAbs,decreasing = FALSE) %>% 
+                   head(30)) %>% 
 kable(col.names = c("Frecuencia relativa","Frecuencia absoluta")) 
 ```
-
-
-
 
 
 
@@ -190,26 +208,21 @@ image(sample(transactions,size = 200))
 
 Para Items desde 60 a 80 hay muchas transacciones
 
+# Aplicación del algoritmo a priori
 
-
-
-
-
-# 4. Aplicación del algoritmo a priori
-
-
-
-
+## Algoritmo
 
 ```{r}
 # apriori() function to apply the Apriori algorithm to find association rules.
-RulesName<-apriori (transactions, parameter = list(supp = 0.01,
-                                                    conf = 0.5,minlen=2))
+RulesName<-apriori (transactions, 
+                    parameter = list(supp = 0.01,conf = 0.5,
+                                     minlen=2,maxlen=30
+                                   #  ,target = "frequent itemset"
+                                   ))
 ```
 
 ```{r}
  # To view the rules, use the inspect() function. 
-
 inspect(RulesName)
 ```
 
@@ -217,34 +230,187 @@ No hemos encontrado ninguna regla. Tenemos que modificar los valores de confiren
 
 El no tener reglas nos indica que hemos puesto unos valores muy elevados
 
-
-
 ```{r}
  # How many rules did the algorithm create?
  # To get ‘strong' rules, increase the value of ‘conf’ parameter.
 ```
 
-
-
-
 ```{r}
-rules_iMac <- apriori (data=transactions, parameter=list (supp=0.01,conf = 0.20,minlen=2), 
-                  appearance = list(default="rhs",lhs=c("iMac","ViewSonic Monitor","HP Laptop") ), control = list (verbose=F)) # those who bought 'milk' also bought..
+rules_iMac <- apriori (data=transactions, 
+                       parameter=list (supp=0.01,conf = 0.20,minlen=2), 
+                       appearance = list(default="rhs",
+                       lhs=c("iMac","HP Laptop","CYBERPOWER Gamer Desktop"  ,
+                             "Dell Desktop",
+                             "ViewSonic Monitor",
+                             "Lenovo Desktop Computer",
+                             "Acer Desktop"
+                             ) ), 
+                  control = list (verbose=F)) 
 rules_iMac
 # el problema es confident, es baja
 # Para buscar itemsets, fuerzo la conbinación de productos
 # "iMac","ViewSonic Monitor" conbinación interesante
 
-rules_conf_iMac <- sort (rules_iMac, by="confidence", decreasing=TRUE) # 'high-confidence' rules.
+
+
+rules_conf_iMac <- sort (rules_iMac, by="confidence", decreasing=TRUE) 
+# 'high-confidence' rules.
 inspect((rules_conf_iMac))
 # ir viendo que productos me interesa meter en lhs
 # en rhs me van saliendo los tops
 ```
 
+
 ¿Patrones y relaciones entre los items? - He trabajado esto ahora
 
 
+## Evaluación del modelo
 
+
+```{r}
+summary(rules_conf_iMac)
+```
+
+Si los valores de support y confidence están próximos a los ajustados, revisar.
+
+Métricas:
+
+    + Support: 
+        + Valor medio: 0.01717
+        + Valor mínimo: 0.01057
+        + Valor máximo: 0.03833
+    + Confidence: 
+        + Valor medio: 0.2170
+        + Valor máximo: 0.2466
+        + Valor mínimo: 0.2026
+
+Los valores elegidos eran:
+
+    + Support: 0.01
+    + Confidence: 0.20
+
+
+El valor de lift mide la importancia de una regla. Un valor alto de esta métrica indica que la regla es importante:
+
+        + Valor medio: 2.125
+        + Valor máximo: 3.196
+        + Valor mínimo: 1.162
+
+La regla con mayor valor de lift es la siguiente:
+
+\[ (\text{HP Laptop,Lenovo Desktop Computer}) => (\text{Apple Magic Keyboard})\]
+
+
+Las métricas para esta regla son:
+
+|support   | confidence|   coverage|     lift |count|
+|---------------------------------------------------|
+|0.01057448|	0.2290749|	0.0461616|	3.195676|	104 |
+
+Se han dado un total de 104 transacciones en las que al haber comprado los artículos HP Laptop y el artículo Lenovo Desktop Computer juntos, se ha comprado el Apple Magic Keyboard.
+
+
+La transacción que más veces se ha repetido es:
+
+\[ (\text{iMac}) => (\text{Lenovo Desktop Computer})\]
+
+|support   | confidence|   coverage|     lift |count|
+|---------------------------------------------------|
+|0.0587697 |0.2294561  | 0.25612608| 1.549932 |  578|
+
+Sin embargo, el valor de lift está por debajo de la media. Por lo que no es una métrica muy fiable.
+
+Otras reglas con valores altos de lift:
+
+\[ (\text{iMac,  ViewSonic Monitor}) => (\text{Lenovo Desktop Computer})\]
+
+0.01576004  0.3189300 0.04941535 2.154311   155
+
+\[ (\text{HP Laptop,  ViewSonic Monitor}) => (\text{Dell Desktop})\]
+
+0.01525165  0.3177966 0.04799187 2.371419   150
+
+
+\[ (\text{HP Laptop, iMac}) => (\text{Lenovo Desktop Computer})\]
+
+ 0.02308083  0.3055182 0.07554652 2.063716   227
+ 
+ 
+\[ (\text{iMac,ViewSonic Monitor}) => (\text{Dell Desktop})\]
+0.01474326  0.2983539 0.04941535 2.226336   145
+
+
+\[ (\text{iMac,HP Laptop}) => (\text{Dell Desktop})\]
+0.02226741  0.2947510 0.07554652 2.199451   219
+ 
+
+\[ (\text{iMac,HP Laptop}) => (\text{Acer Desktop})\]
+0.01596340  0.2113055 0.07554652 2.074042   157
+
+
+
+Vemos que la dupla iMac y HP Laptop se repite en muchas transacciones para la influencia de compra de muchos otros productos
+
+## Mejorar el modelo
+
+
+```{r}
+ItemRules <- subset(rules_iMac, items %in% "iMac")
+inspect(ItemRules)
+
+?subset
+```
+
+
+```{r}
+is.redundant(rules_conf_iMac,measure="confidence")
+```
+No tenemos reglas redundantes.
+
+## Representación gráfica de las reglas
+
+
+
+
+```{r}
+plot(rules_conf_iMac, method="graph", 
+     control=list(type="items")
+     #limit =100 
+     )
+```
+
+Muchas reglas van hacia Lenovo desktop Computer
+
+```{r}
+plot(rules_conf_iMac, method="paracoord", control=list(reorder=TRUE))
+```
+
+
+Vemos claramente que las reglas van a los productos Acer Aspire y Lenovo Desktop Computer.
+
+## Análisis final de las reglas
+
+Vamos a dividir las reglas en tres categorías:
+
+- Reglas perspicaces:  debe contener las reglas más útiles.
+- Reglas irrelevantes: reglas que no son útiles o son obvias.
+- Reglas poco claras: reglas que son indescifrables y, por lo tanto, de las que no se pueden sacar conclusiones claras
+
+Nota: las reglas de asociación son descubrimientos interesantes o fuentes de información, NO predicciones.
+
+
+
+# Conclusiones y recomendaciones
+
+
+
+
+
+Periodos de ofertas, rebajas, 2x1, oferta de accesorios con la compra de productos,...
+
+Hemos hecho un estudio de análisis de cesta de la compra para Electronidex, pero también sería interesante hacer este estudio para Blackwell, ya que nos ayudaría a encontrar patrones de compra y relaciones de compra de productos.
+
+Eliminar productos. ¿De Electronidex o de Blackwell?
 
 
 
