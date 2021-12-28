@@ -622,13 +622,13 @@ DatosVentas %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped"
 ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenVentasTotal) , 
                                      y =VolumenVentasTotal , fill= ProductType)) + 
     geom_bar(stat="identity", position="dodge") +
-   scale_y_continuous(breaks = seq(0,28000,by=5000))+
-    labs(title="Gráfico de barras" ,
-         subtitle= "Tipo de producto y volumen de venta histórico", 
+   scale_y_continuous(breaks = seq(0,28000,by=1000))+
+    labs(title="Tipo de producto y volumen de ventas histórico" ,
+         subtitle="Blackwell Electronics" , 
          caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas",
          xlab="Tipo de producto", ylab="Volumen de ventas histórico")+
-  xlab("Volumen total de ventas")+
-  ylab("Tipo de producto")+
+  xlab("Tipo de producto")+
+  ylab("Volumen de ventas")+
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
