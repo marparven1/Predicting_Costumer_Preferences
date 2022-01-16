@@ -717,7 +717,7 @@ ggplot(data=df.rep, aes(x=ProductNum,
                     y=Volume, fill=ProductNum)) + 
     geom_bar(stat="identity", position="dodge")+
   scale_x_continuous(breaks = seq(100,150,by=1))+
-  
+
   scale_y_continuous(breaks = seq(0,250,by=10))+
   labs(title = "Volumen del histórico de ventas de ordenadores portátiles",
        caption = "Fuente: Elaboración propia")+
@@ -2472,10 +2472,18 @@ Es interesante destacar que el modelo da mucha importancia a variables que miden
 ## Predicciones
 
 ```{r}
+output$PrediccionFinalR<-floor(output$PrediccionFinal)
+## output %>% 
+##   filter(ProductType=="PC" |ProductType=="Laptop" | ## ProductType=="Netbook" | ProductType=="Smartphone") %>% 
+##   select(c(1,2,19)) %>% 
+## kable(booktabs=TRUE) %>% 
+##   kable_styling(latex_options = "striped")
+
 output %>% 
   filter(ProductType=="PC" |ProductType=="Laptop" | ProductType=="Netbook" | ProductType=="Smartphone") %>% 
-  select(c(1,2,19)) %>% 
-kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+  select(c(1,2,20)) %>% 
+kable(booktabs=TRUE) %>% 
+  kable_styling(latex_options = "striped")
 ```
 
 Vamos a representar el volumen de ventas en función del tipo de producto
@@ -2485,7 +2493,11 @@ MisProds <-
 output %>% 
   filter(ProductType=="PC" |ProductType=="Laptop" | ProductType=="Netbook" | ProductType=="Smartphone") 
 
-ggplot(data=MisProds, aes(x=ProductType ,   y =PrediccionFinal , fill= ProductType)) + 
+MisProds2 <- MisProds %>%group_by(ProductType) %>% 
+  summarise(TotalVentas =  sum(PrediccionFinalR))
+
+
+ggplot(data=MisProds2, aes(x=ProductType ,   y =TotalVentas , fill= ProductType)) + 
     geom_bar(stat="identity", position="dodge") +
    scale_y_continuous(breaks = seq(0,1500,by=100))+
     labs(title="Gráfico de barras" ,
@@ -2500,6 +2512,44 @@ ggplot(data=MisProds, aes(x=ProductType ,   y =PrediccionFinal , fill= ProductTy
 La predicción es la siguiente: 
 
 El tipo de producto que más se venderá serán los netbooks, seguido de smartphones, ordenadores PC y por último, el producto que menos se va a vender son laptops.
+
+```{r}
+MisProds %>% select(c(2,9,5,20)) %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+
+
+ggplot(data=MisProds, aes(y=PrediccionFinalR,   x =PositiveServiceReview , fill= ProductType,label=ProductNum,colour=ProductType)) + 
+    geom_point() +
+   scale_x_continuous(breaks=seq(0,40,by=5))+
+  scale_y_continuous(breaks = seq(0,1200,by=100))+
+    geom_text_repel(box.padding = 0.3, max.overlaps = Inf)+
+    labs(title="Reseñas positivas y predicción de ventas" ,
+         subtitle = "Según tipo de producto",
+         caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas",
+         xlab="Tipo de producto", ylab="Volumen de ventas histórico")+
+  xlab("Número de reseñas positivas por el servicio")+
+  ylab("Predicción de ventas")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+```{r}
+
+ggplot(data=MisProds, aes(x=ProductNum, 
+                    y=PrediccionFinalR, fill=ProductType
+                    #, colour=ProductNum
+                    ) )+ 
+    geom_bar(stat="identity", position="dodge")+
+  scale_x_continuous(breaks = MisProds$ProductNum)+
+ scale_y_continuous(breaks = seq(0,1200,by=100))+
+  labs(title = "Predicción de ventas",
+       subtitle = "Según tipo de producto",
+       caption = "Fuente: Elaboración propia")+
+  xlab("Número de identificación del producto")+
+  ylab("Predicción de ventas")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
 
 
 Vamos a ver por artículos dentro de cada tipo de productos

@@ -493,11 +493,11 @@ Esta medida se calcula aplicando la regla de laplace:
 
 (casos favorables)/casos posibles
 
--    Casos favorables: transacciones en las que aparecen los dos productos
+-   Casos favorables: transacciones en las que aparecen los dos productos
 
 -   Casos posibles: todas las transacciones
 
--    Límites: 0 (no aparecen juntos nunca) y 1 (en todas las transacciones he comprado esos dos productos).
+-   Límites: 0 (no aparecen juntos nunca) y 1 (en todas las transacciones he comprado esos dos productos).
 
 A mayor soporte, habrá mas transacciones en las que se han comprado estos productos juntos
 

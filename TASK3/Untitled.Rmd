@@ -1,0 +1,387 @@
+---
+title: "Proyecto Blackwell Electronics. Data Science Process"
+subtitle: "Módulo 3 Tarea 3: Regresión múltiple. Análisis de predicción de ventas"
+author: "Marta Venegas Pardo"
+date: "10 de Diciembre de 2021"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    toc: yes
+    toc_depth: 5
+    number_sections: yes
+lang: es
+---
+
+```{r setup, include=FALSE,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(message=FALSE,warning=FALSE , echo = FALSE)
+```
+
+```{r librerías}
+dire<-getwd() 
+setwd(dire) 
+
+# Librerías necesarias
+library(dplyr)
+library(kableExtra)
+library(knitr)
+
+# Gráficos
+library(ggplot2)
+library(scales)
+library(ggrepel)
+library(hrbrthemes)
+
+## Matriz de correlación 
+library(corrplot)
+# Análisis exploratioro
+library(SmartEDA)
+
+library(ggrepel)
+# Modelado
+library(caret)
+```
+
+# Introducción (definición del problema + objetivos)
+
+## Objetivos
+
+El equipo de ventas de Blackwell Electronics solicita que analicemos los datos correspondientes a las ventas de distintos productos con el **objetivo** de:
+
+- Entender como varía el volumen de ventas en función del tipo de producto
+- Predecir las ventas de cuatro tipos de productos diferentes: PC, portátiles, netbooks y teléfonos inteligentes
+- Evaluar el impacto que tienen las revisiones de los servicios y las reseñas de los clientes en el volumen de ventas de diferentes tipos de productos
+
+
+Para ello, analizaremos los datos correspondientes al histórico de ventas para hacer predicciones del volumen de ventas de los nuevos productos. 
+
+
+
+
+## Qué encontraremos en este informe
+
+- Descripción de los datos y variables predictoras de las ventas de cada producto
+- Limpieza de datos y preparación para el modelado
+- Análisis exploratorio, resumen de mis datos, representaciones gráficas,
+- Modelado, prueba de diferentes modelos con diferentes hiperparametrizaciones, entrenamiento de los modelos con validación y testeo de los modelos
+- Test final del mejor modelo y predicción del volumen de ventas de los nuevos productos en el conjunto de datos "new product" 
+- Conclusiones
+
+
+
+## Procedimiento para cumplir mis objetivos
+
+- Descripción de datos, pre-procesado, limpieza de los datos, análisis exploratorio y feature engineering 
+- Modelado a través de algoritmos de regresión , como por ejemplo: regresión lineal, support vector machine y random forest 
+- Decisión del algoritmo que nos proporciona el mejor modelo de cara a predecir el volumen de ventas de los diferentes productos
+- Una vez tengamos el modelo final, predecir las ventas de los cuatro tipos de productos informáticos
+
+
+# Descripción de los conjuntos de datos
+
+
+
+-   Conjuntos de datos:
+
+    -   **DatosProdExistentes**: Histórico de ventas con los 80 productos existentes, sus características y valoraciones
+    -   **DatosProdNuevos**: Dataset con 24 nuevos productos, sus características y valoraciones
+    
+Aquí encontramos la primera limitación de los datos, tenemos muy pocos registros y de cara a modelar nuestra variable _volumen de ventas_ esto va a suponer un problema para dividir en datos de entrenamiento y testeo, pero es algo que desarrollaremos en el apartado de modelado.
+
+```{r}
+DatosProdExistentes<-read.csv(file="DATOS/existingproductattributes2017.csv",header = TRUE,sep = ",",dec ="." )
+
+DatosProdNuevos<-read.csv(file="DATOS/newproductattributes2017.csv",header = TRUE,sep = ",",dec =".")
+```
+
+Vamos a visualizar los datos:
+
+```{r}
+DatosProdExistentes %>% 
+  head(10) %>% 
+  kable(booktabs=TRUE,caption = "Histórico de ventas. Datos: Productos existentes") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+```{r}
+DatosProdNuevos %>% 
+  head(10) %>% 
+  kable(booktabs=TRUE,caption = "Datos: Productos nuevos") %>% 
+  kable_styling(latex_options = "striped")
+```
+
+
+
+
+
+
+## Descripción de variables
+
+-   Datos del histórico de ventas: 80 productos diferentes
+-   Datos de nuevos productos: 24 productos diferentes
+
+En ambos conjuntos de datos encontramos 18 variables :
+
+-   **Product type**: Tipo de producto. Encontramos 12 tipos diferentes (Accesorios, monitor ordenador portatil, Netbook, impresora, extensión de la garantía, Consola, accesorios de impresora, teléfonos inteligentes, tabletas, software). (Variable categórica)
+
+-   **ProductNum**: Identificador del producto, es único para cada producto (Variable numérica)
+
+-   **XiStarReviews**: cinco variables correspondientes a la calificación (de 1 a 5) que le dan los clientes al producto   (Variable numérica, que indica el número de veces que se le ha dado esa puntiación) Estas variables son: 1 estrella, 2 estrellas, 3 estrellas,  4 estrellas, y 5 estrellas
+
+-   **PositiveServiceReview**: Número de veces que se ha dado una reseña positiva por el servicio prestado. (numérica)
+-   **NegativeServiceReview**: Número de veces que se ha dado una reseña negativa por el servicio prestado. (numérica)
+-   **RecommendProduct**: Puntuación entre 0 y 1 que indica si se recomendaría o no el producto (variable numérica)
+-   **Best Seller Rank**: Puesto que ocupa en un ránking de productos  (variable numérica entera)
+-   **Shipping Weigth**: Peso del envío (variable numérica)
+-   **Product Depth**: Dimensiones de la profundidad del producto (variable numérica)
+-   **Product Width**: Dimensiones del ancho del producto (variable numérica)
+-   **Product Heigth**: Dimensiones del alto del producto (variable numérica)
+-   **ProfitMargin**: Margen de beneficio que proporciona el producto (numérica)
+-   **Target. Volume**: Volumen de ventas de dicho producto. (Variable numérica entera)
+
+
+
+```{r}
+#dim(DatosProdExistentes)
+#dim(DatosProdNuevos)
+```
+
+
+# Preparación de los datos (Limpieza de datos)
+
+En este paso del proceso, trataremos de encontrar, corregir o eliminar registros erróneos (incompletos) en nuestros datos. Para ello estudiaremos si todas las instancias están completas, si existen duplicados, valores atípicos,...
+
+En primer lugar vamos a mostrar los datos en forma de cadena para ver si tenemos todas las variables en la forma correspondiente, por ejemplo: variables numéricas como números, categóricas como factor,...
+
+```{r}
+str(DatosProdExistentes)
+str(DatosProdNuevos)
+```
+
+
+Todos los datos están en el formato correcto, por lo que por el momento no debemos hacer ningún cambio ni recodificación de ninguna variable.
+
+Mostramos ahora un resumen de los datos, para ver que no existen incongruencias como precios o volúmenes de ventas negativos, valores faltantes o cualquier otro error que pudiera existir en los datos.
+
+
+
+```{r}
+summary(DatosProdExistentes)
+summary(DatosProdNuevos)
+```
+
+## Duplicados
+
+
+Mostramos a continuación, las instancias duplicadas en nuestros datasets:
+
+-   Duplicados en los datos de entrenamiento:
+
+```{r}
+DatosProdExistentes[duplicated(DatosProdExistentes)==TRUE,]
+```
+
+
+
+-   Duplicados en los datos de testeo:
+
+```{r}
+DatosProdNuevos[duplicated(DatosProdNuevos)==TRUE,]
+```
+
+En la última fila de las salidas vemos _0 rows_, por tanto, en nuestros conjuntos de datos, no existen instancias duplicadas.
+
+
+
+## Transformación de variables
+
+### Datos ficticios (dummy)
+
+Tenemos que transformar la variable product type de factor a variable binaria de (0 y 1)
+
+La variable product type es un factor con los siguientes niveles:
+
+```{r}
+levels(DatosProdExistentes$ProductType) %>% kable(booktabs=TRUE, col.names  = "Tipos de producto") %>% kable_styling(latex_options = "striped")
+```
+
+Vamos a aplicar la función dummyVars para obtener 12 nuevas variables binarias de tipo (0,1)
+
+
+```{r echo=TRUE}
+# dummy of the data
+newDataFrame <- dummyVars(" ~ .", data = DatosProdExistentes)
+readyData <- data.frame(predict(newDataFrame, newdata = DatosProdExistentes))
+
+str(readyData[,1:12])
+
+```
+
+
+
+```{r  echo=TRUE}
+DatosProdExistentes$BestSellersRank<- NULL # conjunto de datos original
+readyData$BestSellersRank<- NULL # datos dummy
+```
+
+
+
+
+
+
+```{r}
+DatosVentas = DatosProdExistentes %>% group_by(ProductType) %>% 
+  summarise(
+    VolumenVentasTotal = sum(Volume),
+    VolumenMedio = mean(Volume),
+    ImporteVenta = sum(Volume*Price),
+    MediaImporteVenta = mean(Volume*Price)
+  )
+
+DatosVentas$Tienda <- rep("Blackwell Electronix",nrow(DatosVentas))
+```
+
+
+```{r}
+ggplot(data=DatosVentas, aes(x=reorder(ProductType,-VolumenVentasTotal) , 
+                                     y =VolumenVentasTotal , fill= ProductType)) + 
+    geom_bar(stat="identity", position="dodge") +
+   scale_y_continuous(breaks = seq(0,28000,by=1000))+
+    labs(title="Tipo de producto y volumen de ventas histórico" ,
+         subtitle="Blackwell Electronics" , 
+         caption="Fuente: Elaboración propia. Conjunto de datos del histórico de ventas",
+         xlab="Tipo de producto", ylab="Volumen de ventas histórico")+
+  xlab("Tipo de producto")+
+  ylab("Volumen de ventas")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+
+
+
+## Electronidex
+
+```{r}
+transactions<- read.transactions('ElectronidexTransactions2017/ElectronidexTransactions2017.csv', 
+                                       format = c("basket"), sep = ",", 
+                                       rm.duplicates = TRUE, skip = 0, 
+                                       encoding = "readLines")
+# transactions
+```
+
+
+
+
+```{r}
+ElectronideX<-cbind.data.frame( itemLabels(transactions),
+                  itemFrequency(transactions,type="absolute"))
+ElectronideX<-cbind.data.frame(ElectronideX[,1],
+                 ElectronideX[,2])
+colnames(ElectronideX)<-c("Producto","Ventas")
+```
+
+Los productos vendidos por Electronidex son:
+
+```{r}
+itemLabels(transactions) %>% 
+  kable(booktabs=TRUE, caption = "Productos de Electronidex",longtable=TRUE,col.names = "Producto") %>% 
+  kable_styling(latex_options = c("stripped","repeat_header"))
+```
+
+```{r}
+ElectronideX<-ElectronideX %>%
+  mutate(ProductType = case_when(
+    grepl("Display",ElectronideX$Producto,fixed=T) ~ "Display",
+    grepl("Laptop",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("TV",ElectronideX$Producto,fixed=T)~"TV" ,
+    grepl("Monitor",ElectronideX$Producto,fixed=T)~ "Monitor",
+    grepl("iMac",ElectronideX$Producto,fixed=T)~ "Monitor",
+    grepl("Desktop",ElectronideX$Producto,fixed=T)~"PC" ,
+    grepl("PC",ElectronideX$Producto,fixed=T)~"PC" ,
+    grepl("Laptop",ElectronideX$Producto,fixed=T)~"Laptop" ,
+    grepl("MacBook",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Acer Aspire",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Chromebook",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Printer",ElectronideX$Producto,fixed=T)~ "Printer",
+    grepl("Tablet",ElectronideX$Producto,fixed=T)~ "Tablet",
+    grepl("iPad",ElectronideX$Producto,fixed=T)~ "Tablet",
+    grepl("Netbook",ElectronideX$Producto,fixed=T)~"Netbook" ,
+    grepl("Smartphone",ElectronideX$Producto,fixed=T)~ "Smartphone",
+    grepl("Software",ElectronideX$Producto,fixed=T)~ "Software",
+    grepl("HP Notebook Touchscreen Laptop PC",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Ink",ElectronideX$Producto,fixed=T)~ "PrinterSupplies",
+    grepl("Toner",ElectronideX$Producto,fixed=T)~ "PrinterSupplies",
+    
+    ))
+ElectronideX[is.na(ElectronideX$ProductType),3] <-"Accessories"
+```
+
+
+```{r}
+ggplot(data=ElectronideX, 
+       aes(x=reorder(ProductType,Ventas) , 
+        y = Ventas , fill= ProductType)) + 
+    geom_bar(stat="identity", position="dodge") +
+   scale_y_continuous(breaks = seq(0,2500,by=200))+
+    labs(title="Tipo de producto y volumen de ventas del último mes" ,
+         subtitle= "Electronidex", 
+         caption="Fuente: Elaboración propia. Conjunto de datos de transacciones"
+        )+
+  xlab("Tipo de producto")+
+  ylab("Volumen de Ventas")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+
+
+
+```{r}
+ElectronideX$Tienda <-  rep("Electronidex",nrow(ElectronideX))
+```
+
+```{r}
+DatosVentasBlackw<-DatosVentas %>% select(c(ProductType,VolumenVentasTotal,Tienda) )
+DatosVentasElectro = ElectronideX  %>% group_by(ProductType) %>% 
+  summarise(
+    VolumenVentasTotal = sum(Ventas)) %>% 
+  mutate(
+    Tienda = rep("Electronidex",8)
+  )%>% select(c(ProductType,VolumenVentasTotal,Tienda) )
+
+Dataset<-rbind.data.frame(DatosVentasBlackw,DatosVentasElectro)
+colnames(Dataset)<-c("ProductType"  ,   "VolumenVentas" ,"Tienda"           )
+```
+
+
+```{r}
+DatosVentasBlackw
+
+```
+```{r}
+DatosVentasElectro
+```
+
+
+```{r}
+ggplot(data=Dataset, 
+       aes(
+              x=reorder(ProductType,VolumenVentas) , 
+              y = VolumenVentas , 
+              colour= Tienda,
+              fill=Tienda
+              )) + 
+    geom_bar(stat="identity", position="dodge",width = 0.7) +
+   scale_y_continuous(breaks = seq(0,50000,by=2000))+
+    labs(title="Comparación del volumen de ventas" ,
+         subtitle= "Por tipo de producto y tienda", 
+         caption="Fuente: Elaboración propia."
+        )+
+  xlab("Tipo de producto")+
+  ylab("Volumen de Ventas")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+
+
+
