@@ -1,0 +1,297 @@
+---
+title: "Lessons Learned"
+author: "Marta Venegas Pardo"
+date: "1/20/2022"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introducción
+
+
+En este documento vamos a exponer a modo de informe las lecciones más importantes aprendidas en este módulo 3 sobre el análisis de datos.
+
+
+
+# Tarea 2. Marca de ordenador preferida por los clientes. Clasificación
+
+No olvidar que si la variable objetivo es categórica, los modelos que voy a construir serán modelos de **clasificación**.
+
+-   Podré construir matrices de confusión, hacer una evaluación del error a partir de esta y calcular la precisión de las métricas
+
+## Aprendizaje 1. Uso de la fución train de la librería CARET para la construcción de modelos comparables
+
+### Utilidad
+
+Usar la librería CARET para construir modelos predictivos. Algo que he aprendido, es a no comparar métricas que vienen de modelos construidos con distintos algoritmos, por ejemplo, no puedo comparar un *Accuracy* que viene de un modelo construido con la función **train** del paquete *Caret* con otro que viene de la función **randomForest** de la librería *randomFores* o dl de la librería *C50* la función **C5.0**.
+
+### Recomendación
+
+Cada una de estas funciones están programadas con distintos algoritmos, y por tanto, siempre debo comparar métricas de modelos que proceden de la misma función.
+
+## Aprendizaje 2. Uso de la función varImp del paquete CARET
+
+### Utilidad
+
+Para cada modelo, podemos descubrir que variables han influido más a la hora de clasificar a un indiviudo en una clase determinada.
+
+## Aprendizaje 3. Partición en datos de entrenamiento y testeo para datasets no balanceados
+
+### Utilidad
+
+Podemos hacer uso de la función **createDataPartition** de nuevo del paquete CARET. Esta función automáticamente crea la partición y nos da los índices de los datos de entrenamiento y test pero manteniendo las proporciones que tenían los datos utilizados para modelar y así las métricas sean más fiables.
+
+Es muy importante que si, por ejemplo, nuestros datos tenían las siguiente proporciones:
+
+```{r echo=FALSE}
+cat("Proporción de la clase minoritaria: ",3744/sum(3744  ,6154  )*100, "\n" ) # Clase minoritaria
+cat("Proporción de la clase mayoritaria: ",6154/sum(3744  ,6154  )*100 ) # Clase mayoritaria
+```
+
+
+### Recomendación
+
+Debemos comprobar que las proporciones de las clases se mantengan para ambos conjuntos de datos clientes que prefieren cada marca se mantengan en ambos conjuntos de datos:
+
+## Modelo de clasificación. Proceso de construcción de modelos de clasificación y selección de un modelo de clasificación definitivo
+
+Procedimiento seguido a la hora de modelar (todos los modelos con: Validación cruzada con 10 grupos y una repetición)
+
+División de los datos en entrenamiento, validación y testeo, ya que el dataset tenía un número suficientemente grande de registros (10000 encuestas)
+
+Partición de 80% 20% para entrenamiento y validación. A continuación, volvemos a hacer una división del dataset de entrenamiento entrenamientoValidación y testeoValidación, con una proporción del 80% 20%.
+
+Algoritmos:
+
+1.  C5.0:
+
+    -   5 hiperparametrizaciones distintas ( tuneLength = 5)
+
+2.  RandomForest:
+
+    -   Número de intentos (tune length): 3
+    -   Diferentes tamaños de muestra para ver con cuál obtengo mejores métricas
+    -   mtry: 2, 18 (mejor) y 34
+
+3.  KNN. Configuración:
+
+    -   Número de intentos (tune length): 3
+    -   Diferentes tamaños de muestra para ver con cuál obtengo mejores métricas
+    -   Prueba con k = 5,7,9 (mejor) para obtener un k que optimice las métricas
+
+4.  Stochastic Gradient Boosting (Automathic Grid). Configuración de la malla de hiperparámetros:
+
+    -   Max Depth: 1,2,3,4,5
+    -   Número de árboles: 50 100 150 200 250
+    -   Learning rate: 0.1
+    -   Número de muestras: 7
+
+Los hiperparámetros admisibles para este modelo son:
+
+-   Número de árboles (iteraciones)
+
+-   Complejidad del árbol (interaction.depth)
+
+-   Learning rate: shrinkage
+
+-   Número mínimo de muestras de conjuntos de entrenamiento en un nodo para comenzar a dividir (n.minobsinnode)
+
+Ahora, configuramos cada modelo con las métricas óptimas obtenidas sobre los datos de entrenamientoValidación.
+
+A continuación probamos los modelos haciendo una clasificación de la marca preferida con los datos de testeoValidación. Para cada modelo entrenado sobre los datos de testeo validación, obtenemos una matriz de confusión donde encontramos la clasificación obtenida y los datos reales.
+
+El modelo que mejor clasifica la marca preferida por el cliente es: gradientBoosting.
+
+Ahora, clasificamos la marca preferida por los clientes en el conjunto de datos test y hacemos un análisis de error. Por último, aplicamos el modelo elegido para clasificar la marca prefererida en el dataset incompletos.
+
+# Tarea 3. Predicción de ventas de nuevos productos. Regresión
+
+## Aprendizaje 1: Correlación
+
+La correlación mide el grado de asociación de las variables. En este apartado, he aprendido a diferenciar:
+
+- la alta correlación entre la variable dependiente y alguna(s) variable(s) independiente
+- la alta correlación entre variables independientes (colinealidad)
+
+
+El valor de la correlación lineal, me dirá cuanto va a influir la variable en el modelo de regresión lineal. Aquellas variables con mayor grado de correlación (positiva o negativa), van a tener más importancia de cara a predecir la variable objetivo (numérica) que aquellas que a penas guarden relación con la variable objetivo.
+
+También, el caso de una correlación 1 con la variable objetivo. Esto es un caso extremo donde, la variable objetivo queda perfectamente explicada por esta varaible y por tanto en cualquier modelo el resto de variables no van a participar. Esto es un problema de cara a construir un modelo de regresión. Debemos eliminar esta variable y no introducirla como variable predictora del target.
+
+
+
+### Utilidad
+
+Este aprendizaje es muy útil para no introducir variables independientes que produzcan "ruido" en el modelo, es decir, harán que mis métricas no sean todo lo buenas que podrían ser y por tanto, el modelo no sería óptimo.
+
+
+
+
+## Aprendizaje 2. Modelar con un conjunto de datos pequeño
+
+Aquí encontramos una limitación en los datos, tenemos muy pocos registros y de cara a modelar nuestra variable objetivo esto va a suponer un problema para dividir en datos de entrenamiento y testeo.
+
+Tomaremos una partición de 80% 20% para datos de entrenamiento y testeo. No dividiremos el conjunto de datos de entrenamiento en validación, ya que tenemos muy pocos registros y las métricas serían muy pobres.
+
+
+### Utilidad
+
+Porque en caso de no saberlo, construiríamos un dataset de entrenamiento, validación y testeo como en la tarea 2, y esto nos llevaría a tener unas métricas malas y poco fiables.
+
+
+
+## Modelo de regresión. Proceso de construcción de modelos de regresión y selección de un modelo de clasificación definitivo
+
+En primer lugar, para la replicación de los resultados, usamos la función trainControl (para todos los modelos)
+\(
+\text{fitControl <- trainControl(method = "repeatedcv",
+                           number = 5,
+                           repeats = 3)}
+\)
+
+Estamos aplicando validación cruzada con 5 folds y no 10 como es lo habitual, debido a la longitud de los datos.
+
+En todos los modelos escalamos las variables directamente al llamar a la función train que construirá el modelo.
+
+
+Algoritmos:
+
+1.  Modelo de Regresión lineal:
+
+    -   5 hiperparametrizaciones distintas ( tuneLength = 5)
+
+2.  Suport Vector Machine with Linear Kernel
+
+    -   Parámetro c: usaremos una malla de valores entre 1 y 3
+
+
+3.  Algoritmo 3: Random Forest Regression. Configuración:
+
+    -   Diferentes valores de mtry
+    -   Número de intentos (tune length): 3
+
+
+
+A continuación, probamos los modelos en los datos de testeo y elección del modelo final.
+
+El algoritmo elegido para realizar predicciones de la variable target, es el que nos ha proporcionado mejores métricas y menor variabilidad de éstas en la validación cruzada. Se trata del algoritmo Random forest Ahora, realizamos las predicciones en el conjunto de datos nuevo.
+
+
+
+# Tarea 4. Descubrir asociación entre productos
+
+Market Basket Analysis es un método de investigación que permite descubrir asociaciones entre productos, al bucear entre los datos correspondientes a las compras realizadas por los clientes de un negocio.
+
+## Métricas de asociación para el análisis de cesta de la compra
+
+### Support - Soporte
+
+Frecuencia de un conjunto de productos (X,Y) en todas las transacciones. Frecuencia con la que una persona compra esos X,Y productos al mismo tiempo.
+
+Esta medida se calcula aplicando la regla de laplace:
+
+(casos favorables)/casos posibles
+
+-   Casos favorables: transacciones en las que aparecen los dos productos
+
+-   Casos posibles: todas las transacciones
+
+-   Límites: 0 (no aparecen juntos nunca) y 1 (en todas las transacciones he comprado esos dos productos).
+
+A mayor soporte, habrá mas transacciones en las que se han comprado estos productos juntos
+
+### Confidence - Confianza
+
+$$C(X->Y) = \dfrac{\text{Transacciones que contienen a X y a Y}}{ \text{transacciones que contienen sólo a X}}$$
+
+Probabilidad de que al comprar el artículo X compre también el artículo Y. Cuanto mayor confianza, mayor probabilidad de que al comprar X compre Y
+
+-   Límites: 0 (al comprar X la probabilidad de comprar Y es nula, no lo voy a comprar) y 1 (si al comprar X sé seguro que voy a compar el producto Y). Son casos extremos
+
+### Lift
+
+Este parámetro mide la frecuencia de compra de ambos / probabilidad de comprar X \* probabilidad de cobrar Y
+
+Mide la robustez de las reglas (strength)
+
+
+
+
+
+
+
+
+## Aprendizaje 1. Trabajar con un conjunto de datos en formato *basket*
+
+### Utilidad
+
+Hasta el momento, habíamos trabajado siempre con datasets en formato tablas y dataframes. Ahora tenemos un conjunto de datos en formato basket. Tenemos información de transacciones de los clientes, cuantos productos compran y cuales son, pero tenemos una limitación, no sabemos cuántos artículos de cada producto se venden, solo si es vendido en una transacción.
+
+
+## Aprendizaje 2. Aplicar el algoritmo a priori y construcción de las reglas de asociación
+
+### Utilidad
+
+Con la utilización de éste algoritmo somos capaces de construir reglas que nos indican: *Si compro un artículo A y B, voy a vender el artículo C con una probabilidad alta.*
+
+
+### Recomendación
+
+El procedimiento que hemos seguido es *obligar* al algoritmo a tener los productos que se venden con más frecuencia a la izquierda de la regla de asociación para así descubrir los porductos que son más probables que se vendan a partir de la venta de los productos más frecuentes.
+
+## Aprendizaje 3. Clasificación de los productos 
+
+
+Uno de los procedimientos que llevamos a cabo en esta tarea ha sido el de clasificar los productos de Electronidex por tipo, haciendo uso de las librerías **dplyr** y **ggrepel**.
+
+```{r echo=TRUE , eval=FALSE}
+ElectronideX<-ElectronideX %>%
+  mutate(ProductType = case_when(
+    grepl("Display",ElectronideX$Producto,fixed=T) ~ "Display",
+    grepl("Laptop",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("TV",ElectronideX$Producto,fixed=T)~"TV" ,
+    grepl("Monitor",ElectronideX$Producto,fixed=T)~ "Monitor",
+    grepl("iMac",ElectronideX$Producto,fixed=T)~ "Monitor",
+    grepl("Desktop",ElectronideX$Producto,fixed=T)~"PC" ,
+    grepl("PC",ElectronideX$Producto,fixed=T)~"PC" ,
+    grepl("Laptop",ElectronideX$Producto,fixed=T)~"Laptop" ,
+    grepl("MacBook",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Acer Aspire",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Chromebook",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Printer",ElectronideX$Producto,fixed=T)~ "Printer",
+    grepl("Tablet",ElectronideX$Producto,fixed=T)~ "Tablet",
+    grepl("iPad",ElectronideX$Producto,fixed=T)~ "Tablet",
+    grepl("Netbook",ElectronideX$Producto,fixed=T)~"Netbook" ,
+    grepl("Smartphone",ElectronideX$Producto,fixed=T)~ "Smartphone",
+    grepl("Software",ElectronideX$Producto,fixed=T)~ "Software",
+    grepl("HP Notebook Touchscreen Laptop PC",ElectronideX$Producto,fixed=T)~ "Laptop",
+    grepl("Ink",ElectronideX$Producto,fixed=T)~ "PrinterSupplies",
+    grepl("Toner",ElectronideX$Producto,fixed=T)~ "PrinterSupplies",
+    
+    ))
+```
+
+
+
+### Utilidad
+
+El hacer esta clasificación nos ha ayudado a la hora de comparar con los productos que vende Blackwell y a comparar la cantidad.
+
+Es una forma de tener la información homogeneizada para comprenderla mejor y poder hacer un mejor análisis.
+
+
+
+
+
+
+
+
+
+
